@@ -19,24 +19,19 @@
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
         button { touch-action: manipulation; }
-        body { -webkit-tap-highlight-color: transparent; }
     </style>
 </head>
 <body class="bg-black text-gray-100 font-sans selection:bg-blue-500 selection:text-white">
     <div id="root"></div>
 
-    <script type="text/babel" data-type="module">
+    <script type="text/babel" data-type="module" data-presets="react">
         import React, { useState, useMemo, useEffect } from 'react';
         import { createRoot } from 'react-dom/client';
-        import { ChevronLeft, ChevronRight, Plus, X, Wallet, TrendingUp, TrendingDown, Calendar as CalendarIcon, Settings, Moon, Sun, List, LayoutGrid, Download, Upload, Pencil, PieChart, BarChart3, Trash2 } from 'lucide-react';
+        import { ChevronLeft, ChevronRight, Plus, X, Wallet, TrendingUp, TrendingDown, Calendar as CalendarIcon, Settings, Moon, Sun, List, LayoutGrid, Download, Upload, Pencil, PieChart, BarChart3, Trash2, Scale, Layers } from 'lucide-react';
 
         const formatCurrency = (amount, currency) => {
             const options = { style: 'currency', currency: currency, minimumFractionDigits: 0, maximumFractionDigits: 0 };
-            try {
-                return new Intl.NumberFormat(currency === 'KRW' ? 'ko-KR' : 'zh-CN', options).format(amount);
-            } catch (e) {
-                return amount;
-            }
+            return new Intl.NumberFormat(currency === 'KRW' ? 'ko-KR' : 'zh-CN', options).format(amount);
         };
 
         const generateCalendarDays = (year, month) => {
@@ -67,12 +62,13 @@
             const [activeTab, setActiveTab] = useState('calendar');
             const [currentDate, setCurrentDate] = useState(new Date());
             const [transactions, setTransactions] = useState([]);
-            
             const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
-            
             const [isModalOpen, setIsModalOpen] = useState(false);
             const [editingId, setEditingId] = useState(null);
             const [selectedDateDetail, setSelectedDateDetail] = useState(null); 
+            const [settingsTab, setSettingsTab] = useState('general');
+            const [newCategoryName, setNewCategoryName] = useState('');
+            const [categoryTypeToAdd, setCategoryTypeToAdd] = useState('expense');
             
             const [newTrans, setNewTrans] = useState({
                 date: new Date().toISOString().split('T')[0],
@@ -82,12 +78,8 @@
                 desc: ''
             });
 
-            const [settingsTab, setSettingsTab] = useState('general');
-            const [newCategoryName, setNewCategoryName] = useState('');
-            const [categoryTypeToAdd, setCategoryTypeToAdd] = useState('expense');
-
             useEffect(() => {
-                const savedData = localStorage.getItem('bk_budget_data_v2');
+                const savedData = localStorage.getItem('bk_budget_data_v3');
                 if (savedData) {
                     try {
                         const parsed = JSON.parse(savedData);
@@ -104,7 +96,7 @@
             useEffect(() => {
                 if (isLoaded) {
                     const dataToSave = { initialBalance, currency, isDarkMode, transactions, categories };
-                    localStorage.setItem('bk_budget_data_v2', JSON.stringify(dataToSave));
+                    localStorage.setItem('bk_budget_data_v3', JSON.stringify(dataToSave));
                 }
             }, [initialBalance, currency, isDarkMode, transactions, categories, isLoaded]);
 
@@ -135,13 +127,13 @@
                 reader.onload = (e) => {
                     try {
                         const parsed = JSON.parse(e.target.result);
-                        if (window.confirm("데이터를 복원하시겠습니까? (기존 데이터는 덮어씌워집니다)")) {
+                        if (window.confirm("복원하시겠습니까? 기존 데이터는 삭제됩니다.")) {
                             if (parsed.initialBalance !== undefined) setInitialBalance(parsed.initialBalance);
                             if (parsed.currency) setCurrency(parsed.currency);
                             if (parsed.isDarkMode !== undefined) setIsDarkMode(parsed.isDarkMode);
                             if (parsed.transactions) setTransactions(parsed.transactions);
                             if (parsed.categories) setCategories(parsed.categories);
-                            alert("복원 완료!");
+                            alert("복원 완료");
                             setIsSettingsOpen(false);
                         }
                     } catch (err) { alert("파일 오류"); }
@@ -167,30 +159,38 @@
                 return { stats, finalBalance: runningBalance };
             }, [sortedTransactions, initialBalance]);
 
+            // [추가] 전체 누적 통계 계산 (All Time)
+            const allTimeStats = useMemo(() => {
+                let income = 0;
+                let expense = 0;
+                transactions.forEach(t => {
+                    if (t.type === 'income') income += Number(t.amount);
+                    else expense += Number(t.amount);
+                });
+                const balance = Number(initialBalance) + income - expense;
+                return { income, expense, balance };
+            }, [transactions, initialBalance]);
+
             const categoryStats = useMemo(() => {
                 const startStr = `${year}-${String(month + 1).padStart(2, '0')}-01`;
                 const endStr = `${year}-${String(month + 1).padStart(2, '0')}-31`;
-                
                 const currentMonthTrans = transactions.filter(t => t.date >= startStr && t.date <= endStr);
-                
                 const incomeMap = {};
                 const expenseMap = {};
-                
                 currentMonthTrans.forEach(t => {
                     const targetMap = t.type === 'income' ? incomeMap : expenseMap;
                     const cat = t.category || '미분류';
                     targetMap[cat] = (targetMap[cat] || 0) + Number(t.amount);
                 });
-
-                const sortStats = (map) => Object.entries(map)
-                    .map(([name, value]) => ({ name, value }))
-                    .sort((a, b) => b.value - a.value);
-
+                const sortStats = (map) => Object.entries(map).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+                const totalIncome = Object.values(incomeMap).reduce((a, b) => a + b, 0);
+                const totalExpense = Object.values(expenseMap).reduce((a, b) => a + b, 0);
                 return {
                     income: sortStats(incomeMap),
                     expense: sortStats(expenseMap),
-                    totalIncome: Object.values(incomeMap).reduce((a, b) => a + b, 0),
-                    totalExpense: Object.values(expenseMap).reduce((a, b) => a + b, 0)
+                    totalIncome,
+                    totalExpense,
+                    monthBalance: totalIncome - totalExpense
                 };
             }, [transactions, year, month]);
 
@@ -212,9 +212,7 @@
                 if (!newTrans.amount || !newTrans.desc) return;
                 const currentCats = newTrans.type === 'income' ? categories.income : categories.expense;
                 const categoryToSave = newTrans.category || currentCats[0] || '기타';
-
                 const transToSave = { ...newTrans, category: categoryToSave, amount: Number(newTrans.amount) };
-
                 if (editingId) {
                     setTransactions(prev => prev.map(t => t.id === editingId ? { ...transToSave, id: editingId } : t));
                 } else {
@@ -246,43 +244,20 @@
             const handleAddCategory = () => {
                 if (!newCategoryName.trim()) return;
                 const type = categoryTypeToAdd;
-                if (categories[type].includes(newCategoryName)) {
-                    alert('이미 존재하는 항목입니다.');
-                    return;
-                }
-                setCategories(prev => ({
-                    ...prev,
-                    [type]: [...prev[type], newCategoryName]
-                }));
+                if (categories[type].includes(newCategoryName)) { alert('이미 존재함'); return; }
+                setCategories(prev => ({ ...prev, [type]: [...prev[type], newCategoryName] }));
                 setNewCategoryName('');
             };
 
             const handleDeleteCategory = (type, name) => {
-                if (categories[type].length <= 1) {
-                    alert('최소 1개의 항목은 있어야 합니다.');
-                    return;
-                }
-                if (window.confirm(`'${name}' 항목을 삭제하시겠습니까?`)) {
-                    setCategories(prev => ({
-                        ...prev,
-                        [type]: prev[type].filter(c => c !== name)
-                    }));
+                if (categories[type].length <= 1) { alert('최소 1개 필수'); return; }
+                if (window.confirm('삭제하시겠습니까?')) {
+                    setCategories(prev => ({ ...prev, [type]: prev[type].filter(c => c !== name) }));
                 }
             };
 
             const calendarDays = generateCalendarDays(year, month);
-            const currentMonthStats = useMemo(() => {
-                let income = 0; let expense = 0;
-                const startStr = `${year}-${String(month + 1).padStart(2, '0')}-01`;
-                const endStr = `${year}-${String(month + 1).padStart(2, '0')}-31`;
-                transactions.forEach(t => {
-                    if (t.date >= startStr && t.date <= endStr) {
-                        if (t.type === 'income') income += t.amount; else expense += t.amount;
-                    }
-                });
-                return { income, expense };
-            }, [transactions, year, month]);
-
+            
             const theme = {
                 bg: isDarkMode ? 'bg-black' : 'bg-gray-50',
                 text: isDarkMode ? 'text-gray-100' : 'text-gray-800',
@@ -318,28 +293,62 @@
                     </header>
 
                     <main className="max-w-6xl mx-auto px-4 py-6 pb-20">
-                        <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                            <div className={`flex items-center rounded-lg shadow-sm border p-1 ${theme.card}`}>
-                                <button onClick={handlePrevMonth} className={`p-2 rounded-md ${theme.hover}`}><ChevronLeft size={20} /></button>
-                                <span className={`px-4 text-lg font-semibold min-w-[120px] text-center ${theme.cardText}`}>{year}.{month + 1}</span>
-                                <button onClick={handleNextMonth} className={`p-2 rounded-md ${theme.hover}`}><ChevronRight size={20} /></button>
+                        {/* 1. 상단 대시보드 */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                            
+                            {/* 좌측: 이번 달 현황 */}
+                            <div className={`md:col-span-2 rounded-xl border p-4 ${theme.card}`}>
+                                <div className="flex justify-between items-center mb-4">
+                                    <div className="flex items-center gap-2">
+                                        <button onClick={handlePrevMonth} className={`p-1 rounded ${theme.hover}`}><ChevronLeft size={18} /></button>
+                                        <h2 className={`text-lg font-bold ${theme.cardText}`}>{year}년 {month + 1}월</h2>
+                                        <button onClick={handleNextMonth} className={`p-1 rounded ${theme.hover}`}><ChevronRight size={18} /></button>
+                                    </div>
+                                    <span className="text-xs font-medium px-2 py-1 rounded bg-neutral-800 text-gray-400">월간 현황</span>
+                                </div>
+                                <div className="grid grid-cols-3 gap-2 text-center divide-x divide-neutral-800">
+                                    <div>
+                                        <p className={`text-xs ${theme.subText} mb-1`}>수입</p>
+                                        <p className={`font-bold text-sm sm:text-base ${theme.incomeText}`}>{formatCurrency(categoryStats.totalIncome, currency)}</p>
+                                    </div>
+                                    <div>
+                                        <p className={`text-xs ${theme.subText} mb-1`}>지출</p>
+                                        <p className={`font-bold text-sm sm:text-base ${theme.expenseText}`}>{formatCurrency(categoryStats.totalExpense, currency)}</p>
+                                    </div>
+                                    <div>
+                                        <p className={`text-xs ${theme.subText} mb-1`}>월 수지(잔액)</p>
+                                        <p className={`font-bold text-sm sm:text-base ${categoryStats.monthBalance >= 0 ? theme.cardText : theme.expenseText}`}>
+                                            {formatCurrency(categoryStats.monthBalance, currency)}
+                                        </p>
+                                    </div>
+                                </div>
                             </div>
-                            <div className="flex gap-3 text-sm w-full overflow-x-auto pb-1">
-                                <div className={`px-3 py-2 rounded-lg border flex items-center gap-2 min-w-fit ${theme.card}`}>
-                                    <div className="p-1 bg-blue-100 text-blue-600 rounded-full"><TrendingUp size={14}/></div>
-                                    <div><p className={`text-[10px] ${theme.subText}`}>수입</p><p className={`font-bold ${theme.incomeText}`}>+{formatCurrency(currentMonthStats.income, currency)}</p></div>
+
+                            {/* [수정] 우측: 누적 총 자산 상세 내역 (수입/지출/잔액 분리) */}
+                            <div className={`md:col-span-1 rounded-xl border p-4 flex flex-col justify-center relative overflow-hidden ${isDarkMode ? 'bg-blue-900/10 border-blue-800/30' : 'bg-blue-50 border-blue-200'}`}>
+                                <div className="absolute top-0 left-0 w-1 h-full bg-blue-500"></div>
+                                <div className="flex items-center gap-2 mb-3 pb-2 border-b border-blue-500/20">
+                                    <Layers size={16} className="text-blue-500"/>
+                                    <span className={`text-xs font-bold uppercase tracking-wider ${theme.subText}`}>전체 누적 현황</span>
                                 </div>
-                                <div className={`px-3 py-2 rounded-lg border flex items-center gap-2 min-w-fit ${theme.card}`}>
-                                    <div className="p-1 bg-rose-100 text-rose-600 rounded-full"><TrendingDown size={14}/></div>
-                                    <div><p className={`text-[10px] ${theme.subText}`}>지출</p><p className={`font-bold ${theme.expenseText}`}>-{formatCurrency(currentMonthStats.expense, currency)}</p></div>
-                                </div>
-                                <div className={`px-3 py-2 rounded-lg border flex items-center gap-2 min-w-fit ${theme.card}`}>
-                                    <div className={`p-1 rounded-full ${isDarkMode ? 'bg-neutral-800 text-gray-300' : 'bg-gray-100 text-gray-600'}`}><Wallet size={14}/></div>
-                                    <div><p className={`text-[10px] ${theme.subText}`}>잔액</p><p className={`font-bold ${theme.cardText}`}>{formatCurrency(dailyStatsMap.finalBalance, currency)}</p></div>
+                                <div className="space-y-2">
+                                    <div className="flex justify-between items-center text-sm">
+                                        <span className={theme.subText}>누적 수입</span>
+                                        <span className="text-blue-500 font-medium">+{formatCurrency(allTimeStats.income, currency)}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center text-sm">
+                                        <span className={theme.subText}>누적 지출</span>
+                                        <span className="text-rose-500 font-medium">-{formatCurrency(allTimeStats.expense, currency)}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center text-sm pt-2 border-t border-blue-500/20">
+                                        <span className={`${theme.cardText} font-bold`}>누적 잔액</span>
+                                        <span className={`text-lg font-bold ${isDarkMode ? 'text-blue-100' : 'text-blue-700'}`}>{formatCurrency(allTimeStats.balance, currency)}</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
+                        {/* 탭 메뉴 */}
                         <div className="flex gap-2 mb-4 border-b border-gray-200 dark:border-neutral-800">
                             <button onClick={() => setActiveTab('calendar')} className={`pb-3 px-4 text-sm font-medium flex items-center gap-2 border-b-2 ${activeTab === 'calendar' ? `border-blue-500 text-blue-500` : `border-transparent ${theme.subText}`}`}><LayoutGrid size={18} />달력</button>
                             <button onClick={() => setActiveTab('list')} className={`pb-3 px-4 text-sm font-medium flex items-center gap-2 border-b-2 ${activeTab === 'list' ? `border-blue-500 text-blue-500` : `border-transparent ${theme.subText}`}`}><List size={18} />목록</button>
@@ -408,41 +417,65 @@
 
                         {activeTab === 'stats' && (
                             <div className="space-y-6 animate-in fade-in zoom-in duration-200">
-                                {/* 지출 통계 */}
+                                <div className={`rounded-xl shadow border p-5 ${theme.card}`}>
+                                    <div className="flex justify-between items-center mb-3">
+                                        <h3 className={`font-bold flex items-center gap-2 ${theme.cardText}`}>
+                                            <Scale size={18} className="text-gray-400"/>
+                                            월간 수지 (잔액)
+                                        </h3>
+                                        <span className={`text-lg font-bold ${categoryStats.monthBalance >= 0 ? theme.incomeText : theme.expenseText}`}>
+                                            {formatCurrency(categoryStats.monthBalance, currency)}
+                                        </span>
+                                    </div>
+                                    <div className="relative h-4 bg-neutral-800 rounded-full overflow-hidden mb-2">
+                                        <div 
+                                            className="absolute left-0 top-0 h-full bg-blue-500" 
+                                            style={{ width: `${categoryStats.totalIncome > 0 ? (categoryStats.totalIncome / (categoryStats.totalIncome + categoryStats.totalExpense)) * 100 : 0}%` }}
+                                        ></div>
+                                        <div 
+                                            className="absolute right-0 top-0 h-full bg-rose-500" 
+                                            style={{ width: `${categoryStats.totalExpense > 0 ? (categoryStats.totalExpense / (categoryStats.totalIncome + categoryStats.totalExpense)) * 100 : 0}%` }}
+                                        ></div>
+                                    </div>
+                                    <div className="flex justify-between text-xs">
+                                        <span className="text-blue-500">수입 {formatCurrency(categoryStats.totalIncome, currency)}</span>
+                                        <span className="text-rose-500">지출 {formatCurrency(categoryStats.totalExpense, currency)}</span>
+                                    </div>
+                                </div>
+
                                 <div className={`rounded-xl shadow border p-4 ${theme.card}`}>
-                                    <h3 className={`font-bold mb-4 flex items-center gap-2 ${theme.cardText}`}><TrendingDown size={18} className="text-rose-500"/>지출 통계 (총 {formatCurrency(categoryStats.totalExpense, currency)})</h3>
+                                    <h3 className={`font-bold mb-4 flex items-center gap-2 ${theme.cardText}`}><TrendingDown size={18} className="text-rose-500"/>지출 분석</h3>
                                     <div className="space-y-3">
                                         {categoryStats.expense.map((item, idx) => (
                                             <div key={item.name}>
                                                 <div className="flex justify-between text-xs mb-1">
                                                     <span className={theme.cardText}>{item.name}</span>
-                                                    <span className={theme.expenseText}>{formatCurrency(item.value, currency)} ({Math.round(item.value / categoryStats.totalExpense * 100)}%)</span>
+                                                    <span className={theme.expenseText}>{formatCurrency(item.value, currency)} ({categoryStats.totalExpense > 0 ? Math.round(item.value / categoryStats.totalExpense * 100) : 0}%)</span>
                                                 </div>
                                                 <div className="w-full bg-neutral-800 rounded-full h-2.5 overflow-hidden">
-                                                    <div className="bg-rose-500 h-2.5 rounded-full" style={{ width: `${(item.value / categoryStats.totalExpense) * 100}%` }}></div>
+                                                    <div className="bg-rose-500 h-2.5 rounded-full" style={{ width: `${categoryStats.totalExpense > 0 ? (item.value / categoryStats.totalExpense) * 100 : 0}%` }}></div>
                                                 </div>
                                             </div>
                                         ))}
-                                        {categoryStats.expense.length === 0 && <p className={`text-center text-sm py-4 ${theme.subText}`}>데이터가 없습니다.</p>}
+                                        {categoryStats.expense.length === 0 && <p className={`text-center text-sm py-4 ${theme.subText}`}>지출 내역이 없습니다.</p>}
                                     </div>
                                 </div>
 
-                                {/* 수입 통계 */}
                                 <div className={`rounded-xl shadow border p-4 ${theme.card}`}>
-                                    <h3 className={`font-bold mb-4 flex items-center gap-2 ${theme.cardText}`}><TrendingUp size={18} className="text-blue-500"/>수입 통계 (총 {formatCurrency(categoryStats.totalIncome, currency)})</h3>
+                                    <h3 className={`font-bold mb-4 flex items-center gap-2 ${theme.cardText}`}><TrendingUp size={18} className="text-blue-500"/>수입 분석</h3>
                                     <div className="space-y-3">
                                         {categoryStats.income.map((item, idx) => (
                                             <div key={item.name}>
                                                 <div className="flex justify-between text-xs mb-1">
                                                     <span className={theme.cardText}>{item.name}</span>
-                                                    <span className={theme.incomeText}>{formatCurrency(item.value, currency)} ({Math.round(item.value / categoryStats.totalIncome * 100)}%)</span>
+                                                    <span className={theme.incomeText}>{formatCurrency(item.value, currency)} ({categoryStats.totalIncome > 0 ? Math.round(item.value / categoryStats.totalIncome * 100) : 0}%)</span>
                                                 </div>
                                                 <div className="w-full bg-neutral-800 rounded-full h-2.5 overflow-hidden">
-                                                    <div className="bg-blue-500 h-2.5 rounded-full" style={{ width: `${(item.value / categoryStats.totalIncome) * 100}%` }}></div>
+                                                    <div className="bg-blue-500 h-2.5 rounded-full" style={{ width: `${categoryStats.totalIncome > 0 ? (item.value / categoryStats.totalIncome) * 100 : 0}%` }}></div>
                                                 </div>
                                             </div>
                                         ))}
-                                        {categoryStats.income.length === 0 && <p className={`text-center text-sm py-4 ${theme.subText}`}>데이터가 없습니다.</p>}
+                                        {categoryStats.income.length === 0 && <p className={`text-center text-sm py-4 ${theme.subText}`}>수입 내역이 없습니다.</p>}
                                     </div>
                                 </div>
                             </div>
@@ -477,13 +510,10 @@
                         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
                             <div className={`rounded-xl shadow-xl w-full max-w-sm overflow-hidden flex flex-col max-h-[80vh] ${theme.card}`}>
                                 <div className={`px-4 py-3 border-b flex justify-between items-center ${theme.border}`}><h3 className={`font-bold ${theme.cardText}`}>설정</h3><button onClick={() => setIsSettingsOpen(false)} className={theme.subText}><X size={20} /></button></div>
-                                
-                                {/* 설정 탭 */}
                                 <div className={`flex border-b ${theme.border}`}>
                                     <button onClick={() => setSettingsTab('general')} className={`flex-1 py-3 text-sm font-medium ${settingsTab === 'general' ? 'text-blue-500 border-b-2 border-blue-500' : theme.subText}`}>기본 설정</button>
                                     <button onClick={() => setSettingsTab('category')} className={`flex-1 py-3 text-sm font-medium ${settingsTab === 'category' ? 'text-blue-500 border-b-2 border-blue-500' : theme.subText}`}>항목 관리</button>
                                 </div>
-
                                 <div className="p-4 space-y-4 overflow-y-auto">
                                     {settingsTab === 'general' ? (
                                         <>
@@ -515,13 +545,10 @@
                                                     </div>
                                                 ))}
                                             </div>
-                                            <p className={`text-[10px] ${theme.subText}`}>* 기본 항목도 삭제할 수 있습니다.</p>
                                         </div>
                                     )}
                                 </div>
-                                <div className={`p-4 border-t ${theme.border}`}>
-                                    <button onClick={() => setIsSettingsOpen(false)} className="w-full bg-blue-600 text-white py-2 rounded">닫기</button>
-                                </div>
+                                <div className={`p-4 border-t ${theme.border}`}><button onClick={() => setIsSettingsOpen(false)} className="w-full bg-blue-600 text-white py-2 rounded">닫기</button></div>
                             </div>
                         </div>
                     )}
@@ -553,7 +580,6 @@
                 </div>
             );
         }
-
         const root = createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
