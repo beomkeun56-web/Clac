@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>BK v2.1</title>
+    <title>BK v2.2</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script type="importmap">
     {
@@ -29,9 +29,7 @@
         import { createRoot } from 'react-dom/client';
         import { ChevronLeft, ChevronRight, Plus, Minus, X, Wallet, TrendingUp, TrendingDown, Calendar as CalendarIcon, Settings, Moon, Sun, List, LayoutGrid, Download, Upload, Pencil, PieChart, BarChart3, Trash2, Scale, Layers, LineChart, Table2, StickyNote, FolderTree, Tag } from 'lucide-react';
 
-        const APP_VERSION = "v2.1";
-
-        // 글자 크기 단계
+        const APP_VERSION = "v2.2";
         const FONT_SIZES = ['text-xs', 'text-sm', 'text-base', 'text-lg', 'text-xl'];
         const FONT_LABELS = ['80%', '90%', '100%', '110%', '120%'];
 
@@ -61,13 +59,10 @@
             return days;
         };
 
-        // 소항목 기본값
         const DEFAULT_CATEGORIES = {
             income: ['급여', '용돈', '상여금', '금융수입', '기타'],
             expense: ['식비', '교통', '문화', '공과금', '쇼핑', '주거', '의료', '기타']
         };
-
-        // [신규] 대항목 기본값
         const DEFAULT_MAIN_CATEGORIES = {
             income: ['근로소득', '금융소득', '기타'],
             expense: ['고정지출', '변동지출', '저축', '기타']
@@ -83,22 +78,14 @@
             const [activeTab, setActiveTab] = useState('calendar');
             const [currentDate, setCurrentDate] = useState(new Date());
             const [transactions, setTransactions] = useState([]);
-            
-            // 카테고리 상태 (소항목, 대항목)
             const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
             const [mainCategories, setMainCategories] = useState(DEFAULT_MAIN_CATEGORIES);
-
             const [isModalOpen, setIsModalOpen] = useState(false);
             const [editingId, setEditingId] = useState(null);
             const [selectedDateDetail, setSelectedDateDetail] = useState(null); 
-            
-            // 설정 탭 상태
-            const [settingsTab, setSettingsTab] = useState('general'); // general, main_category, sub_category
-            
-            // 카테고리 추가용 상태
+            const [settingsTab, setSettingsTab] = useState('general');
             const [newCategoryName, setNewCategoryName] = useState('');
             const [categoryTypeToAdd, setCategoryTypeToAdd] = useState('expense');
-            
             const [newTrans, setNewTrans] = useState({
                 date: new Date().toISOString().split('T')[0],
                 type: 'expense',
@@ -109,11 +96,9 @@
                 memo: '' 
             });
 
-            // 초기 로딩 (데이터 + 폰트 설정)
             useEffect(() => {
                 const savedData = localStorage.getItem('bk_budget_data_v21');
                 const savedFontIndex = localStorage.getItem('bk_budget_font_idx');
-
                 if (savedData) {
                     try {
                         const parsed = JSON.parse(savedData);
@@ -122,10 +107,9 @@
                         if (parsed.isDarkMode !== undefined) setIsDarkMode(parsed.isDarkMode);
                         if (parsed.transactions) setTransactions(parsed.transactions);
                         if (parsed.categories) setCategories(parsed.categories);
-                        if (parsed.mainCategories) setMainCategories(parsed.mainCategories); // 대항목 로드
+                        if (parsed.mainCategories) setMainCategories(parsed.mainCategories);
                     } catch (e) { console.error(e); }
                 } else {
-                    // 이전 버전 데이터 마이그레이션 시도 (v5 -> v2.1)
                     const oldData = localStorage.getItem('bk_budget_data_v5');
                     if (oldData) {
                         try {
@@ -136,15 +120,10 @@
                         } catch(e) {}
                     }
                 }
-                
-                if (savedFontIndex !== null) {
-                    setFontIndex(parseInt(savedFontIndex, 10));
-                }
-
+                if (savedFontIndex !== null) setFontIndex(parseInt(savedFontIndex, 10));
                 setIsLoaded(true);
             }, []);
 
-            // 데이터 저장
             useEffect(() => {
                 if (isLoaded) {
                     const dataToSave = { initialBalance, currency, isDarkMode, transactions, categories, mainCategories };
@@ -152,24 +131,13 @@
                 }
             }, [initialBalance, currency, isDarkMode, transactions, categories, mainCategories, isLoaded]);
 
-            const handleFontUp = () => {
-                const newIndex = Math.min(fontIndex + 1, FONT_SIZES.length - 1);
-                setFontIndex(newIndex);
-                localStorage.setItem('bk_budget_font_idx', newIndex);
-            };
+            const handleFontUp = () => { const newIndex = Math.min(fontIndex + 1, FONT_SIZES.length - 1); setFontIndex(newIndex); localStorage.setItem('bk_budget_font_idx', newIndex); };
+            const handleFontDown = () => { const newIndex = Math.max(fontIndex - 1, 0); setFontIndex(newIndex); localStorage.setItem('bk_budget_font_idx', newIndex); };
 
-            const handleFontDown = () => {
-                const newIndex = Math.max(fontIndex - 1, 0);
-                setFontIndex(newIndex);
-                localStorage.setItem('bk_budget_font_idx', newIndex);
-            };
-
-            // 기본값 설정 (대항목/소항목)
             useEffect(() => {
                 if (isModalOpen && !editingId) {
                     const currentMainCats = newTrans.type === 'income' ? mainCategories.income : mainCategories.expense;
                     const currentSubCats = newTrans.type === 'income' ? categories.income : categories.expense;
-                    
                     setNewTrans(prev => ({ 
                         ...prev, 
                         mainCategory: currentMainCats.length > 0 ? currentMainCats[0] : '',
@@ -196,7 +164,7 @@
                 reader.onload = (e) => {
                     try {
                         const parsed = JSON.parse(e.target.result);
-                        if (window.confirm("복원하시겠습니까? 기존 데이터는 삭제됩니다.")) {
+                        if (window.confirm("복원하시겠습니까?")) {
                             if (parsed.initialBalance !== undefined) setInitialBalance(parsed.initialBalance);
                             if (parsed.currency) setCurrency(parsed.currency);
                             if (parsed.isDarkMode !== undefined) setIsDarkMode(parsed.isDarkMode);
@@ -240,34 +208,40 @@
                 return { income, expense, balance };
             }, [transactions, initialBalance]);
 
+            // [수정] 연간 통계: 대항목 > 소항목 계층 구조
             const yearlyStats = useMemo(() => {
-                const monthlyData = Array(12).fill(null).map((_, i) => ({ 
-                    month: i + 1, 
-                    income: 0, 
-                    expense: 0, 
-                    balance: 0,
-                    carryover: 0,
-                    totalRevenue: 0 
-                }));
+                const monthlyData = Array(12).fill(null).map((_, i) => ({ month: i + 1, income: 0, expense: 0, balance: 0, carryover: 0, totalRevenue: 0 }));
                 
-                const categoryData = { income: {}, expense: {} };
+                // 계층형 데이터 구조: { income: { '대항목A': { total: 0, subs: { '소항목a': [], '소항목b': [] } } } }
+                const hierarchyData = { income: {}, expense: {} };
 
                 const yearTransactions = transactions.filter(t => t.date.startsWith(String(year)));
                 
                 yearTransactions.forEach(t => {
                     const m = new Date(t.date).getMonth(); 
-                    const cat = t.mainCategory || t.category || '기타';
+                    const mainCat = t.mainCategory || '기타';
+                    const subCat = t.category || '기타';
                     const amt = Number(t.amount);
+                    const type = t.type; // income or expense
 
-                    if (t.type === 'income') {
-                        monthlyData[m].income += amt;
-                        if (!categoryData.income[cat]) categoryData.income[cat] = Array(12).fill(0);
-                        categoryData.income[cat][m] += amt;
-                    } else {
-                        monthlyData[m].expense += amt;
-                        if (!categoryData.expense[cat]) categoryData.expense[cat] = Array(12).fill(0);
-                        categoryData.expense[cat][m] += amt;
+                    // 1. 월별 합계
+                    if (type === 'income') monthlyData[m].income += amt;
+                    else monthlyData[m].expense += amt;
+
+                    // 2. 계층형 데이터
+                    if (!hierarchyData[type][mainCat]) {
+                        hierarchyData[type][mainCat] = { total: 0, monthly: Array(12).fill(0), subs: {} };
                     }
+                    // 대항목 합계
+                    hierarchyData[type][mainCat].total += amt;
+                    hierarchyData[type][mainCat].monthly[m] += amt;
+
+                    // 소항목
+                    if (!hierarchyData[type][mainCat].subs[subCat]) {
+                        hierarchyData[type][mainCat].subs[subCat] = { total: 0, monthly: Array(12).fill(0) };
+                    }
+                    hierarchyData[type][mainCat].subs[subCat].total += amt;
+                    hierarchyData[type][mainCat].subs[subCat].monthly[m] += amt;
                 });
 
                 let currentCarryover = Number(initialBalance);
@@ -284,13 +258,13 @@
                     currentCarryover = s.balance;
                 });
 
-                return { monthlyData, categoryData }; 
-            }, [transactions, year, categories, initialBalance]);
+                return { monthlyData, hierarchyData }; 
+            }, [transactions, year, initialBalance]);
 
+            // [수정] 통계: 대항목 > 소항목 계층 구조
             const categoryStats = useMemo(() => {
                 const startStr = `${year}-${String(month + 1).padStart(2, '0')}-01`;
                 const endStr = `${year}-${String(month + 1).padStart(2, '0')}-31`;
-                
                 const prevDate = new Date(year, month - 1, 1);
                 const prevYear = prevDate.getFullYear();
                 const prevMonth = prevDate.getMonth();
@@ -308,34 +282,54 @@
                 const currentMonthTrans = transactions.filter(t => t.date >= startStr && t.date <= endStr);
                 const prevMonthTrans = transactions.filter(t => t.date >= prevStartStr && t.date <= prevEndStr);
 
-                const incomeMap = {};
-                const expenseMap = {};
-                const prevIncomeMap = {};
-                const prevExpenseMap = {};
+                // 구조: { '대항목': { total: 0, prev: 0, subs: { '소항목': { total: 0, prev: 0 } } } }
+                const hierarchy = { income: {}, expense: {} };
 
-                currentMonthTrans.forEach(t => {
-                    const targetMap = t.type === 'income' ? incomeMap : expenseMap;
-                    const cat = t.mainCategory || t.category || '기타';
-                    targetMap[cat] = (targetMap[cat] || 0) + Number(t.amount);
-                });
+                // 초기화 및 집계
+                const processTrans = (transList, isPrev) => {
+                    transList.forEach(t => {
+                        const type = t.type;
+                        const mainCat = t.mainCategory || '기타';
+                        const subCat = t.category || '기타';
+                        const amt = Number(t.amount);
 
-                prevMonthTrans.forEach(t => {
-                    const targetMap = t.type === 'income' ? prevIncomeMap : prevExpenseMap;
-                    const cat = t.mainCategory || t.category || '기타';
-                    targetMap[cat] = (targetMap[cat] || 0) + Number(t.amount);
-                });
+                        if (!hierarchy[type][mainCat]) {
+                            hierarchy[type][mainCat] = { total: 0, prev: 0, subs: {} };
+                        }
+                        if (isPrev) hierarchy[type][mainCat].prev += amt;
+                        else hierarchy[type][mainCat].total += amt;
 
-                const sortStats = (map) => Object.entries(map).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
-                const monthlyIncome = Object.values(incomeMap).reduce((a, b) => a + b, 0);
-                const monthlyExpense = Object.values(expenseMap).reduce((a, b) => a + b, 0);
+                        if (!hierarchy[type][mainCat].subs[subCat]) {
+                            hierarchy[type][mainCat].subs[subCat] = { total: 0, prev: 0 };
+                        }
+                        if (isPrev) hierarchy[type][mainCat].subs[subCat].prev += amt;
+                        else hierarchy[type][mainCat].subs[subCat].total += amt;
+                    });
+                };
+
+                processTrans(currentMonthTrans, false);
+                processTrans(prevMonthTrans, true);
+
+                // 정렬 (금액 큰 순서)
+                const sortHierarchy = (data) => {
+                    return Object.entries(data)
+                        .map(([key, val]) => {
+                            const sortedSubs = Object.entries(val.subs)
+                                .map(([subKey, subVal]) => ({ name: subKey, ...subVal }))
+                                .sort((a, b) => b.total - a.total);
+                            return { name: key, ...val, subs: sortedSubs };
+                        })
+                        .sort((a, b) => b.total - a.total);
+                };
+
+                const monthlyIncome = currentMonthTrans.filter(t => t.type === 'income').reduce((a, b) => a + Number(b.amount), 0);
+                const monthlyExpense = currentMonthTrans.filter(t => t.type === 'expense').reduce((a, b) => a + Number(b.amount), 0);
                 const totalRevenue = carryover + monthlyIncome;
                 const finalBalance = totalRevenue - monthlyExpense;
 
                 return {
-                    income: sortStats(incomeMap),
-                    expense: sortStats(expenseMap),
-                    prevIncomeMap,
-                    prevExpenseMap,
+                    income: sortHierarchy(hierarchy.income),
+                    expense: sortHierarchy(hierarchy.expense),
                     monthlyIncome,
                     monthlyExpense,
                     carryover,
@@ -409,15 +403,12 @@
                 setSelectedDateDetail({ dateStr, items: dayTrans });
             };
 
-            // 카테고리 관리 핸들러 (대항목/소항목 공용)
             const handleAddCategory = (isMain) => {
                 if (!newCategoryName.trim()) return;
                 const type = categoryTypeToAdd;
                 const targetState = isMain ? mainCategories : categories;
                 const setTargetState = isMain ? setMainCategories : setCategories;
-
                 if (targetState[type].includes(newCategoryName)) { alert('이미 존재함'); return; }
-                
                 setTargetState(prev => ({ ...prev, [type]: [...prev[type], newCategoryName] }));
                 setNewCategoryName('');
             };
@@ -425,7 +416,6 @@
             const handleDeleteCategory = (isMain, type, name) => {
                 const targetState = isMain ? mainCategories : categories;
                 const setTargetState = isMain ? setMainCategories : setCategories;
-
                 if (targetState[type].length <= 1) { alert('최소 1개 필수'); return; }
                 if (window.confirm('삭제하시겠습니까?')) {
                     setTargetState(prev => ({ ...prev, [type]: prev[type].filter(c => c !== name) }));
@@ -455,9 +445,7 @@
 
             if (!isLoaded) return null; 
 
-            const renderComparison = (currentVal, category, type) => {
-                const prevMap = type === 'income' ? categoryStats.prevIncomeMap : categoryStats.prevExpenseMap;
-                const prevVal = prevMap[category] || 0;
+            const renderComparison = (currentVal, prevVal, type) => {
                 const diff = currentVal - prevVal;
                 let diffText = <span className="text-gray-500">-</span>;
                 if (diff > 0) {
@@ -468,8 +456,8 @@
                     diffText = <span className={colorClass}>▼{formatCurrency(Math.abs(diff), currency).replace(/[₩¥CNY]/g, '').trim()}</span>;
                 }
                 return (
-                    <div className="flex items-center gap-2 text-[10px] sm:text-xs">
-                        <span className="text-gray-400">전월 {formatCurrency(prevVal, currency).replace(/[₩¥CNY]/g, '').trim()}</span>
+                    <div className="flex items-center gap-1 text-[10px]">
+                        <span className="text-gray-500">전 {formatCurrency(prevVal, currency).replace(/[₩¥CNY]/g, '').trim()}</span>
                         {diffText}
                     </div>
                 );
@@ -477,7 +465,6 @@
 
             const currentFontSizeClass = FONT_SIZES[fontIndex];
 
-            // 카테고리 관리 탭 렌더링 헬퍼
             const renderCategoryManager = (isMain) => {
                 const targetState = isMain ? mainCategories : categories;
                 return (
@@ -527,7 +514,6 @@
                     </header>
 
                     <main className="max-w-6xl mx-auto px-4 py-6 pb-20">
-                        {/* 1. 상단 대시보드 */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                             <div className={`md:col-span-2 rounded-xl border p-4 ${theme.card}`}>
                                 <div className="flex justify-between items-center mb-4">
@@ -558,7 +544,6 @@
                             </div>
                         </div>
 
-                        {/* 탭 메뉴 */}
                         <div className="flex gap-2 mb-4 border-b border-gray-200 dark:border-neutral-800">
                             <button onClick={() => setActiveTab('calendar')} className={`pb-3 px-4 text-sm font-medium flex items-center gap-2 border-b-2 ${activeTab === 'calendar' ? `border-blue-500 text-blue-500` : `border-transparent ${theme.subText}`}`}><LayoutGrid size={18} />달력</button>
                             <button onClick={() => setActiveTab('list')} className={`pb-3 px-4 text-sm font-medium flex items-center gap-2 border-b-2 ${activeTab === 'list' ? `border-blue-500 text-blue-500` : `border-transparent ${theme.subText}`}`}><List size={18} />목록</button>
@@ -566,7 +551,6 @@
                             <button onClick={() => setActiveTab('yearly')} className={`pb-3 px-4 text-sm font-medium flex items-center gap-2 border-b-2 ${activeTab === 'yearly' ? `border-blue-500 text-blue-500` : `border-transparent ${theme.subText}`}`}><Table2 size={18} />연간</button>
                         </div>
 
-                        {/* 캘린더 뷰 */}
                         {activeTab === 'calendar' && (
                             <div className={`rounded-xl shadow border overflow-hidden ${theme.card}`}>
                                 <div className={`grid grid-cols-7 border-b ${theme.border} ${theme.th}`}>
@@ -604,7 +588,6 @@
                             </div>
                         )}
 
-                        {/* 리스트 뷰 */}
                         {activeTab === 'list' && (
                             <div className={`rounded-xl shadow border p-4 ${theme.card}`}>
                                 <div className="space-y-3">
@@ -616,7 +599,6 @@
                                                     <span className={`text-[10px] px-1.5 py-0.5 rounded border ${t.type === 'income' ? 'border-blue-500 text-blue-500' : 'border-rose-500 text-rose-500'}`}>{t.category}</span>
                                                     <p className={`font-medium ${theme.cardText}`}>{t.desc}</p>
                                                 </div>
-                                                {/* 메모 표시 */}
                                                 {t.memo && <p className="text-[10px] text-gray-500 mt-1 flex items-center gap-1"><StickyNote size={10}/> {t.memo}</p>}
                                             </div>
                                             <div className="flex items-center gap-3">
@@ -630,28 +612,16 @@
                             </div>
                         )}
 
-                        {/* 통계 뷰 */}
                         {activeTab === 'stats' && (
                             <div className="space-y-6 animate-in fade-in zoom-in duration-200">
                                 <div className={`rounded-xl shadow border p-5 ${theme.card}`}>
                                     <div className="flex justify-between items-center mb-3">
-                                        <h3 className={`font-bold flex items-center gap-2 ${theme.cardText}`}>
-                                            <Scale size={18} className="text-gray-400"/>
-                                            이번 달 수지
-                                        </h3>
-                                        <span className={`text-lg font-bold ${categoryStats.finalBalance >= 0 ? theme.incomeText : theme.expenseText}`}>
-                                            {formatCurrency(categoryStats.finalBalance, currency)}
-                                        </span>
+                                        <h3 className={`font-bold flex items-center gap-2 ${theme.cardText}`}><Scale size={18} className="text-gray-400"/>이번 달 수지</h3>
+                                        <span className={`text-lg font-bold ${categoryStats.finalBalance >= 0 ? theme.incomeText : theme.expenseText}`}>{formatCurrency(categoryStats.finalBalance, currency)}</span>
                                     </div>
                                     <div className="relative h-4 bg-neutral-800 rounded-full overflow-hidden mb-2">
-                                        <div 
-                                            className="absolute left-0 top-0 h-full bg-blue-500" 
-                                            style={{ width: `${categoryStats.totalRevenue > 0 ? (categoryStats.totalRevenue / (categoryStats.totalRevenue + categoryStats.monthlyExpense)) * 100 : 0}%` }}
-                                        ></div>
-                                        <div 
-                                            className="absolute right-0 top-0 h-full bg-rose-500" 
-                                            style={{ width: `${categoryStats.monthlyExpense > 0 ? (categoryStats.monthlyExpense / (categoryStats.totalRevenue + categoryStats.monthlyExpense)) * 100 : 0}%` }}
-                                        ></div>
+                                        <div className="absolute left-0 top-0 h-full bg-blue-500" style={{ width: `${categoryStats.totalRevenue > 0 ? (categoryStats.totalRevenue / (categoryStats.totalRevenue + categoryStats.monthlyExpense)) * 100 : 0}%` }}></div>
+                                        <div className="absolute right-0 top-0 h-full bg-rose-500" style={{ width: `${categoryStats.monthlyExpense > 0 ? (categoryStats.monthlyExpense / (categoryStats.totalRevenue + categoryStats.monthlyExpense)) * 100 : 0}%` }}></div>
                                     </div>
                                     <div className="flex justify-between text-xs">
                                         <span className="text-blue-500">가용(총수입) {formatCurrency(categoryStats.totalRevenue, currency)}</span>
@@ -662,20 +632,34 @@
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className={`rounded-xl shadow border p-4 ${theme.card}`}>
                                         <h3 className={`font-bold mb-4 flex items-center gap-2 ${theme.cardText}`}><TrendingDown size={18} className="text-rose-500"/>지출 분석</h3>
-                                        <div className="space-y-3">
-                                            {categoryStats.expense.map((item, idx) => (
-                                                <div key={item.name}>
-                                                    <div className="flex justify-between items-end text-xs mb-1">
-                                                        <span className={theme.cardText}>{item.name}</span>
+                                        <div className="space-y-4">
+                                            {/* [수정] 대항목 > 소항목 계층형 렌더링 */}
+                                            {categoryStats.expense.map((main) => (
+                                                <div key={main.name} className="space-y-2">
+                                                    {/* 대항목 헤더 */}
+                                                    <div className="flex justify-between items-end border-b border-neutral-800 pb-1">
+                                                        <span className={`font-bold ${theme.cardText}`}>{main.name}</span>
                                                         <div className="flex gap-2 items-end">
-                                                            {renderComparison(item.value, item.name, 'expense')}
-                                                            <span className={`${theme.expenseText} font-bold text-sm`}>
-                                                                {formatCurrency(item.value, currency)}
-                                                            </span>
+                                                            {renderComparison(main.total, main.prev, 'expense')}
+                                                            <span className={`${theme.expenseText} font-bold`}>{formatCurrency(main.total, currency)}</span>
                                                         </div>
                                                     </div>
-                                                    <div className="w-full bg-neutral-800 rounded-full h-2.5 overflow-hidden">
-                                                        <div className="bg-rose-500 h-2.5 rounded-full" style={{ width: `${categoryStats.monthlyExpense > 0 ? (item.value / categoryStats.monthlyExpense) * 100 : 0}%` }}></div>
+                                                    {/* 소항목 리스트 */}
+                                                    <div className="space-y-1.5 pl-2 border-l-2 border-neutral-800 ml-1">
+                                                        {main.subs.map((sub) => (
+                                                            <div key={sub.name}>
+                                                                <div className="flex justify-between items-end text-xs">
+                                                                    <span className={theme.subText}>{sub.name}</span>
+                                                                    <div className="flex gap-2 items-end">
+                                                                         {renderComparison(sub.total, sub.prev, 'expense')}
+                                                                         <span className={theme.cardText}>{formatCurrency(sub.total, currency)}</span>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="w-full bg-neutral-800 rounded-full h-1.5 overflow-hidden mt-0.5">
+                                                                    <div className="bg-rose-500/50 h-1.5 rounded-full" style={{ width: `${main.total > 0 ? (sub.total / main.total) * 100 : 0}%` }}></div>
+                                                                </div>
+                                                            </div>
+                                                        ))}
                                                     </div>
                                                 </div>
                                             ))}
@@ -685,20 +669,31 @@
 
                                     <div className={`rounded-xl shadow border p-4 ${theme.card}`}>
                                         <h3 className={`font-bold mb-4 flex items-center gap-2 ${theme.cardText}`}><TrendingUp size={18} className="text-blue-500"/>수입 분석</h3>
-                                        <div className="space-y-3">
-                                            {categoryStats.income.map((item, idx) => (
-                                                <div key={item.name}>
-                                                    <div className="flex justify-between items-end text-xs mb-1">
-                                                        <span className={theme.cardText}>{item.name}</span>
+                                        <div className="space-y-4">
+                                            {categoryStats.income.map((main) => (
+                                                <div key={main.name} className="space-y-2">
+                                                    <div className="flex justify-between items-end border-b border-neutral-800 pb-1">
+                                                        <span className={`font-bold ${theme.cardText}`}>{main.name}</span>
                                                         <div className="flex gap-2 items-end">
-                                                            {renderComparison(item.value, item.name, 'income')}
-                                                            <span className={`${theme.incomeText} font-bold text-sm`}>
-                                                                {formatCurrency(item.value, currency)}
-                                                            </span>
+                                                            {renderComparison(main.total, main.prev, 'income')}
+                                                            <span className={`${theme.incomeText} font-bold`}>{formatCurrency(main.total, currency)}</span>
                                                         </div>
                                                     </div>
-                                                    <div className="w-full bg-neutral-800 rounded-full h-2.5 overflow-hidden">
-                                                        <div className="bg-blue-500 h-2.5 rounded-full" style={{ width: `${categoryStats.monthlyIncome > 0 ? (item.value / categoryStats.monthlyIncome) * 100 : 0}%` }}></div>
+                                                    <div className="space-y-1.5 pl-2 border-l-2 border-neutral-800 ml-1">
+                                                        {main.subs.map((sub) => (
+                                                            <div key={sub.name}>
+                                                                <div className="flex justify-between items-end text-xs">
+                                                                    <span className={theme.subText}>{sub.name}</span>
+                                                                    <div className="flex gap-2 items-end">
+                                                                         {renderComparison(sub.total, sub.prev, 'income')}
+                                                                         <span className={theme.cardText}>{formatCurrency(sub.total, currency)}</span>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="w-full bg-neutral-800 rounded-full h-1.5 overflow-hidden mt-0.5">
+                                                                    <div className="bg-blue-500/50 h-1.5 rounded-full" style={{ width: `${main.total > 0 ? (sub.total / main.total) * 100 : 0}%` }}></div>
+                                                                </div>
+                                                            </div>
+                                                        ))}
                                                     </div>
                                                 </div>
                                             ))}
@@ -709,13 +704,13 @@
                             </div>
                         )}
 
-                        {/* 연간 뷰 */}
+                        {/* 연간 뷰 (계층형 테이블) */}
                         {activeTab === 'yearly' && (
                             <div className={`rounded-xl shadow border p-5 animate-in fade-in zoom-in duration-200 ${theme.card}`}>
                                 <div className="flex justify-between items-center mb-6">
                                     <h3 className={`font-bold flex items-center gap-2 ${theme.cardText}`}>
                                         <Table2 size={18} className="text-gray-400"/>
-                                        {year}년 항목별 상세 흐름
+                                        {year}년 계층형 흐름
                                     </h3>
                                     <span className={`text-xs ${theme.subText}`}>1월 - 12월</span>
                                 </div>
@@ -730,6 +725,7 @@
                                             </tr>
                                         </thead>
                                         <tbody className={`divide-y divide-neutral-800 ${theme.cardText}`}>
+                                            {/* 월별 요약 섹션 */}
                                             <tr className="bg-neutral-800/80 font-bold">
                                                 <td className="px-3 py-2 sticky left-0 bg-neutral-800 z-10 border-r border-neutral-700 text-gray-400">전월 이월</td>
                                                 {yearlyStats.monthlyData.map((stat, i) => (
@@ -737,7 +733,6 @@
                                                 ))}
                                                 <td className="px-3 py-2 text-right sticky right-0 bg-neutral-800 border-l border-neutral-700 text-gray-400">-</td>
                                             </tr>
-
                                             <tr className="bg-neutral-800/50 font-bold">
                                                 <td className="px-3 py-2 sticky left-0 bg-neutral-800 z-10 border-r border-neutral-700 text-blue-400">월 수입</td>
                                                 {yearlyStats.monthlyData.map((stat, i) => (
@@ -768,39 +763,53 @@
                                                 </td>
                                             </tr>
 
-                                            <tr className="bg-blue-900/20 font-bold"><td colSpan="14" className="px-3 py-2 text-blue-400">수입 상세 (대항목)</td></tr>
-                                            {Object.entries(yearlyStats.categoryData.income).map(([cat, months]) => {
-                                                const total = months.reduce((a, b) => a + b, 0);
-                                                if (total === 0) return null;
-                                                return (
-                                                    <tr key={cat} className="hover:bg-neutral-800/50">
-                                                        <td className="px-3 py-2 font-medium sticky left-0 bg-black z-10 border-r border-neutral-800">{cat}</td>
-                                                        {months.map((amt, i) => (
-                                                            <td key={i} className={`px-2 py-2 text-center border-r border-neutral-800 last:border-0 ${amt > 0 ? 'text-blue-400/80' : 'text-neutral-600'}`}>
-                                                                {formatCompactNumber(amt)}
-                                                            </td>
+                                            {/* [수정] 수입 계층형 테이블 */}
+                                            <tr className="bg-blue-900/30 font-bold border-b border-blue-900"><td colSpan="14" className="px-3 py-2 text-blue-400">수입 내역</td></tr>
+                                            {Object.entries(yearlyStats.hierarchyData.income).map(([mainCat, data]) => (
+                                                <React.Fragment key={mainCat}>
+                                                    {/* 대항목 행 */}
+                                                    <tr className="bg-neutral-800/30 font-bold">
+                                                        <td className="px-3 py-2 sticky left-0 bg-neutral-900 z-10 border-r border-neutral-800 text-blue-200 pl-4 border-l-4 border-l-blue-500">{mainCat}</td>
+                                                        {data.monthly.map((amt, i) => (
+                                                            <td key={i} className="px-2 py-2 text-center border-r border-neutral-800 text-blue-200">{amt > 0 ? formatCompactNumber(amt) : ''}</td>
                                                         ))}
-                                                        <td className="px-3 py-2 text-right font-bold text-blue-500 sticky right-0 bg-black border-l border-neutral-800">{formatCompactNumber(total)}</td>
+                                                        <td className="px-3 py-2 text-right sticky right-0 bg-neutral-900 border-l border-neutral-800 text-blue-200">{formatCompactNumber(data.total)}</td>
                                                     </tr>
-                                                );
-                                            })}
+                                                    {/* 소항목 행들 */}
+                                                    {Object.entries(data.subs).map(([subCat, subData]) => (
+                                                        <tr key={`${mainCat}-${subCat}`} className="hover:bg-neutral-800/50 text-neutral-400">
+                                                            <td className="px-3 py-1.5 sticky left-0 bg-black z-10 border-r border-neutral-800 pl-8 text-[10px] sm:text-xs">└ {subCat}</td>
+                                                            {subData.monthly.map((amt, i) => (
+                                                                <td key={i} className="px-2 py-1.5 text-center border-r border-neutral-800">{amt > 0 ? formatCompactNumber(amt) : ''}</td>
+                                                            ))}
+                                                            <td className="px-3 py-1.5 text-right sticky right-0 bg-black border-l border-neutral-800">{formatCompactNumber(subData.total)}</td>
+                                                        </tr>
+                                                    ))}
+                                                </React.Fragment>
+                                            ))}
 
-                                            <tr className="bg-rose-900/20 font-bold"><td colSpan="14" className="px-3 py-2 text-rose-400">지출 상세 (대항목)</td></tr>
-                                            {Object.entries(yearlyStats.categoryData.expense).map(([cat, months]) => {
-                                                const total = months.reduce((a, b) => a + b, 0);
-                                                if (total === 0) return null;
-                                                return (
-                                                    <tr key={cat} className="hover:bg-neutral-800/50">
-                                                        <td className="px-3 py-2 font-medium sticky left-0 bg-black z-10 border-r border-neutral-800">{cat}</td>
-                                                        {months.map((amt, i) => (
-                                                            <td key={i} className={`px-2 py-2 text-center border-r border-neutral-800 last:border-0 ${amt > 0 ? 'text-rose-400/80' : 'text-neutral-600'}`}>
-                                                                {formatCompactNumber(amt)}
-                                                            </td>
+                                            {/* [수정] 지출 계층형 테이블 */}
+                                            <tr className="bg-rose-900/30 font-bold border-b border-rose-900"><td colSpan="14" className="px-3 py-2 text-rose-400">지출 내역</td></tr>
+                                            {Object.entries(yearlyStats.hierarchyData.expense).map(([mainCat, data]) => (
+                                                <React.Fragment key={mainCat}>
+                                                    <tr className="bg-neutral-800/30 font-bold">
+                                                        <td className="px-3 py-2 sticky left-0 bg-neutral-900 z-10 border-r border-neutral-800 text-rose-200 pl-4 border-l-4 border-l-rose-500">{mainCat}</td>
+                                                        {data.monthly.map((amt, i) => (
+                                                            <td key={i} className="px-2 py-2 text-center border-r border-neutral-800 text-rose-200">{amt > 0 ? formatCompactNumber(amt) : ''}</td>
                                                         ))}
-                                                        <td className="px-3 py-2 text-right font-bold text-rose-500 sticky right-0 bg-black border-l border-neutral-800">{formatCompactNumber(total)}</td>
+                                                        <td className="px-3 py-2 text-right sticky right-0 bg-neutral-900 border-l border-neutral-800 text-rose-200">{formatCompactNumber(data.total)}</td>
                                                     </tr>
-                                                );
-                                            })}
+                                                    {Object.entries(data.subs).map(([subCat, subData]) => (
+                                                        <tr key={`${mainCat}-${subCat}`} className="hover:bg-neutral-800/50 text-neutral-400">
+                                                            <td className="px-3 py-1.5 sticky left-0 bg-black z-10 border-r border-neutral-800 pl-8 text-[10px] sm:text-xs">└ {subCat}</td>
+                                                            {subData.monthly.map((amt, i) => (
+                                                                <td key={i} className="px-2 py-1.5 text-center border-r border-neutral-800">{amt > 0 ? formatCompactNumber(amt) : ''}</td>
+                                                            ))}
+                                                            <td className="px-3 py-1.5 text-right sticky right-0 bg-black border-l border-neutral-800">{formatCompactNumber(subData.total)}</td>
+                                                        </tr>
+                                                    ))}
+                                                </React.Fragment>
+                                            ))}
                                         </tbody>
                                     </table>
                                 </div>
@@ -817,10 +826,11 @@
                                         <div key={t.id} className={`flex justify-between items-center p-3 rounded border ${theme.border} ${theme.bg}`}>
                                             <div>
                                                 <div className="flex items-center gap-2 mb-1">
+                                                    <span className={`text-[10px] px-1.5 py-0.5 rounded border border-neutral-700 text-neutral-400`}>{t.mainCategory || '기타'}</span>
                                                     <span className={`text-[10px] px-1.5 py-0.5 rounded border ${t.type === 'income' ? 'border-blue-500 text-blue-500' : 'border-rose-500 text-rose-500'}`}>{t.category}</span>
-                                                    <p className={`font-medium ${theme.cardText}`}>{t.desc}</p>
                                                 </div>
-                                                <p className={`text-xs ${theme.subText}`}>{t.type === 'income' ? '수입' : '지출'}</p>
+                                                <p className={`font-medium ${theme.cardText}`}>{t.desc}</p>
+                                                {t.memo && <p className="text-[10px] text-gray-500 mt-1">📝 {t.memo}</p>}
                                             </div>
                                             <div className="flex items-center gap-2"><span className={`font-bold ${t.type === 'income' ? theme.incomeText : theme.expenseText}`}>{formatCurrency(t.amount, currency)}</span><button onClick={() => handleEditClick(t)}><Pencil size={16} className="text-gray-400"/></button><button onClick={() => handleDelete(t.id)}><X size={16} className="text-gray-400"/></button></div>
                                         </div>
@@ -873,7 +883,6 @@
                                         <div className="flex-1"><label className={`text-xs block mb-1 ${theme.subText}`}>유형</label><div className="flex gap-1"><button type="button" onClick={() => setNewTrans({ ...newTrans, type: 'income' })} className={`flex-1 py-2 text-sm rounded ${newTrans.type === 'income' ? 'bg-blue-600 text-white' : theme.input}`}>수입</button><button type="button" onClick={() => setNewTrans({ ...newTrans, type: 'expense' })} className={`flex-1 py-2 text-sm rounded ${newTrans.type === 'expense' ? 'bg-rose-600 text-white' : theme.input}`}>지출</button></div></div>
                                     </div>
                                     <div className="flex gap-2">
-                                        {/* 대항목 선택 */}
                                         <div className="flex-1">
                                             <label className={`text-xs block mb-1 ${theme.subText}`}>대항목</label>
                                             <select value={newTrans.mainCategory} onChange={(e) => setNewTrans({ ...newTrans, mainCategory: e.target.value })} className={`w-full rounded border px-3 py-2 text-sm ${theme.input}`}>
@@ -882,7 +891,6 @@
                                                 ))}
                                             </select>
                                         </div>
-                                        {/* 소항목 선택 */}
                                         <div className="flex-1">
                                             <label className={`text-xs block mb-1 ${theme.subText}`}>소항목</label>
                                             <select value={newTrans.category} onChange={(e) => setNewTrans({ ...newTrans, category: e.target.value })} className={`w-full rounded border px-3 py-2 text-sm ${theme.input}`}>
