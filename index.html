@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>BK v1.6</title>
+    <title>BK v1.7</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script type="importmap">
     {
@@ -29,18 +29,15 @@
         import { createRoot } from 'react-dom/client';
         import { ChevronLeft, ChevronRight, Plus, X, Wallet, TrendingUp, TrendingDown, Calendar as CalendarIcon, Settings, Moon, Sun, List, LayoutGrid, Download, Upload, Pencil, PieChart, BarChart3, Trash2, Scale, Layers, LineChart } from 'lucide-react';
 
-        // --- 버전 관리 상수 ---
-        const APP_VERSION = "v1.6";
+        const APP_VERSION = "v1.7";
 
         const formatCurrency = (amount, currency) => {
             const options = { style: 'currency', currency: currency, minimumFractionDigits: 0, maximumFractionDigits: 0 };
             return new Intl.NumberFormat(currency === 'KRW' ? 'ko-KR' : 'zh-CN', options).format(amount);
         };
 
-        // 숫자를 짧게 줄여주는 헬퍼 (예: 110000 -> 11만, 57000 -> 5.7만)
         const formatCompactNumber = (number) => {
             if (number === 0) return '';
-            // 1만 미만은 그대로, 이상은 '만' 단위 축약
             if (Math.abs(number) < 10000) return new Intl.NumberFormat('ko-KR').format(number);
             const val = number / 10000;
             return val.toFixed(val % 1 === 0 ? 0 : 1) + '만';
@@ -139,7 +136,7 @@
                 reader.onload = (e) => {
                     try {
                         const parsed = JSON.parse(e.target.result);
-                        if (window.confirm("복원하시겠습니까? 기존 데이터는 삭제됩니다.")) {
+                        if (window.confirm("복원하시겠습니까?")) {
                             if (parsed.initialBalance !== undefined) setInitialBalance(parsed.initialBalance);
                             if (parsed.currency) setCurrency(parsed.currency);
                             if (parsed.isDarkMode !== undefined) setIsDarkMode(parsed.isDarkMode);
@@ -212,25 +209,18 @@
                     s.balance = s.income - s.expense;
                     if (s.income > maxVal) maxVal = s.income;
                     if (s.expense > maxVal) maxVal = s.expense;
-                    // 잔액이 매우 클 수 있으므로 잔액도 최대값 계산에 포함 (선 그래프 스케일링)
                     if (Math.abs(s.balance) > maxVal) maxVal = Math.abs(s.balance);
                 });
 
-                // 그래프 여백을 위해 maxVal 약간 증가
-                maxVal = maxVal * 1.1 || 1;
+                maxVal = maxVal * 1.2 || 1; // 상단 여백 확보
 
                 return { monthlyData, categoryData, maxVal }; 
             }, [transactions, year, categories]);
 
-            // SVG용 Path 생성 (부드러운 곡선)
             const getSmoothPath = (data, maxVal, width, height) => {
                 if (data.length === 0) return "";
-                
                 const points = data.map((d, i) => {
-                    const x = (i / 11) * width; // 12개월 분할
-                    // Y축: 값 0이 height(바닥)이 아니라 중간일 수도 있음? 아니 보통 0이 바닥. 
-                    // 하지만 잔액은 음수일 수도 있음. 여기서는 막대그래프와 동일하게 0을 바닥으로 둠. 음수는 무시하거나 0으로 처리?
-                    // 요청상 "월간 잔액"이므로 양수일 확률 높음. 0 이하는 바닥에 붙임.
+                    const x = (i * (width / 12)) + (width / 24); // 각 월의 중앙에 포인트
                     const val = Math.max(0, d.balance);
                     const y = height - (val / maxVal) * height;
                     return [x, y];
@@ -238,7 +228,6 @@
 
                 if (points.length === 1) return `M ${points[0][0]},${points[0][1]}`;
 
-                // Catmull-Rom to Cubic Bezier conversion logic simplified
                 const line = (pointA, pointB) => {
                     const lengthX = pointB[0] - pointA[0];
                     const lengthY = pointB[1] - pointA[1];
@@ -455,7 +444,6 @@
                     </header>
 
                     <main className="max-w-6xl mx-auto px-4 py-6 pb-20">
-                        {/* 1. 상단 대시보드 */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                             <div className={`md:col-span-2 rounded-xl border p-4 ${theme.card}`}>
                                 <div className="flex justify-between items-center mb-4">
@@ -486,7 +474,6 @@
                             </div>
                         </div>
 
-                        {/* 탭 메뉴 */}
                         <div className="flex gap-2 mb-4 border-b border-gray-200 dark:border-neutral-800">
                             <button onClick={() => setActiveTab('calendar')} className={`pb-3 px-4 text-sm font-medium flex items-center gap-2 border-b-2 ${activeTab === 'calendar' ? `border-blue-500 text-blue-500` : `border-transparent ${theme.subText}`}`}><LayoutGrid size={18} />달력</button>
                             <button onClick={() => setActiveTab('list')} className={`pb-3 px-4 text-sm font-medium flex items-center gap-2 border-b-2 ${activeTab === 'list' ? `border-blue-500 text-blue-500` : `border-transparent ${theme.subText}`}`}><List size={18} />목록</button>
@@ -642,86 +629,74 @@
                                     <span className={`text-xs ${theme.subText}`}>1월 - 12월</span>
                                 </div>
                                 
-                                {/* SVG 차트 (막대 + 곡선) */}
                                 <div className="overflow-x-auto pb-4 mb-6">
                                     <div className="min-w-[500px] h-64 relative">
                                         <svg width="100%" height="100%" viewBox="0 0 500 250" preserveAspectRatio="none">
-                                            {/* 꺾은선 (잔액) - 맨 뒤로 보내거나 맨 위로? 보통 위가 좋음. 순서대로 그리면 됨 */}
-                                            {/* 막대 그래프 */}
                                             {yearlyStats.monthlyData.map((stat, i) => {
-                                                const barWidth = 12; 
+                                                const barWidth = 16; 
                                                 const gap = 4;
-                                                // 500 width / 12 months = ~41.6px per month section
-                                                const xBase = (i / 11) * 460 + 10; // 약간 여유
+                                                const xBase = (i / 11) * 460 + 10;
                                                 
                                                 const hIncome = (stat.income / yearlyStats.maxVal) * 200;
                                                 const hExpense = (stat.expense / yearlyStats.maxVal) * 200;
                                                 
                                                 return (
                                                     <g key={i}>
-                                                        {/* 수입 막대 (파랑) */}
                                                         {stat.income > 0 && (
-                                                            <rect x={xBase - barWidth - gap/2} y={230 - hIncome} width={barWidth} height={hIncome} rx="2" fill="#3b82f6" />
+                                                            <g>
+                                                                <rect x={xBase - barWidth - gap/2} y={230 - hIncome} width={barWidth} height={hIncome} rx="2" fill="#3b82f6" />
+                                                                {hIncome > 15 && (
+                                                                    <text x={xBase - barWidth/2 - gap/2} y={225} textAnchor="middle" fill="white" fontSize="9" fontWeight="bold">
+                                                                        {formatCompactNumber(stat.income)}
+                                                                    </text>
+                                                                )}
+                                                            </g>
                                                         )}
-                                                        {/* 지출 막대 (빨강) */}
                                                         {stat.expense > 0 && (
-                                                            <rect x={xBase + gap/2} y={230 - hExpense} width={barWidth} height={hExpense} rx="2" fill="#e11d48" />
+                                                            <g>
+                                                                <rect x={xBase + gap/2} y={230 - hExpense} width={barWidth} height={hExpense} rx="2" fill="#e11d48" />
+                                                                {hExpense > 15 && (
+                                                                    <text x={xBase + barWidth/2 + gap/2} y={225} textAnchor="middle" fill="white" fontSize="9" fontWeight="bold">
+                                                                        {formatCompactNumber(stat.expense)}
+                                                                    </text>
+                                                                )}
+                                                            </g>
                                                         )}
                                                     </g>
                                                 )
                                             })}
 
-                                            {/* 꺾은선 그래프 (잔액) - 부드러운 곡선 */}
                                             <path 
                                                 d={getSmoothPath(yearlyStats.monthlyData, yearlyStats.maxVal, 460, 230)} 
                                                 fill="none" 
                                                 stroke="#2dd4bf" 
-                                                strokeWidth="3" 
+                                                strokeWidth="1.5" 
                                                 strokeLinecap="round" 
-                                                transform="translate(10, 0)" // x좌표 보정
+                                                transform="translate(10, 0)" 
                                                 style={{ filter: 'drop-shadow(0px 2px 4px rgba(0,0,0,0.5))' }}
                                             />
 
-                                            {/* 꺾은선 포인트 및 텍스트 */}
                                             {yearlyStats.monthlyData.map((stat, i) => {
                                                 const xBase = (i / 11) * 460 + 10;
                                                 const val = Math.max(0, stat.balance);
                                                 const y = 230 - (val / yearlyStats.maxVal) * 230;
                                                 
                                                 return (
-                                                    <circle key={i} cx={xBase} cy={y} r="3" fill="#2dd4bf" stroke="#fff" strokeWidth="1" />
+                                                    <g key={i}>
+                                                        <circle cx={xBase} cy={y} r="3" fill="#2dd4bf" stroke="#fff" strokeWidth="1" />
+                                                        <text x={xBase} y={y - 8} textAnchor="middle" fill="#2dd4bf" fontSize="10" fontWeight="bold" style={{ textShadow: '0px 1px 2px rgba(0,0,0,0.8)' }}>
+                                                            {formatCompactNumber(stat.balance)}
+                                                        </text>
+                                                    </g>
                                                 );
                                             })}
                                         </svg>
 
-                                        {/* HTML 오버레이 텍스트 (SVG 안에 넣으면 스타일링 귀찮으므로 위에 덮음) */}
                                         <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
                                             {yearlyStats.monthlyData.map((stat, i) => {
-                                                const xPercent = (i / 11) * 92 + 2; // 대략적 위치
-                                                const hIncome = (stat.income / yearlyStats.maxVal) * 100;
-                                                const hExpense = (stat.expense / yearlyStats.maxVal) * 100;
-                                                
+                                                const xPercent = (i / 11) * 92 + 2; 
                                                 return (
                                                     <div key={i} className="absolute h-full flex items-end justify-center" style={{ left: `${xPercent}%`, width: '40px', transform: 'translateX(-50%)', bottom: '20px' }}>
-                                                        {/* 수입 텍스트 */}
-                                                        {stat.income > 0 && (
-                                                            <span 
-                                                                className="absolute text-[9px] text-white font-bold drop-shadow-md whitespace-nowrap"
-                                                                style={{ bottom: `${hIncome/2.5 + 2}%`, left: '-4px' }} // 막대 중간쯤
-                                                            >
-                                                                {formatCompactNumber(stat.income)}
-                                                            </span>
-                                                        )}
-                                                        {/* 지출 텍스트 */}
-                                                        {stat.expense > 0 && (
-                                                            <span 
-                                                                className="absolute text-[9px] text-white font-bold drop-shadow-md whitespace-nowrap"
-                                                                style={{ bottom: `${hExpense/2.5 + 2}%`, left: '16px' }}
-                                                            >
-                                                                {formatCompactNumber(stat.expense)}
-                                                            </span>
-                                                        )}
-                                                        {/* 월 라벨 */}
                                                         <span className="absolute -bottom-6 text-[10px] text-gray-500">{stat.month}월</span>
                                                     </div>
                                                 );
@@ -742,7 +717,6 @@
                                                 </tr>
                                             </thead>
                                             <tbody className={`divide-y divide-neutral-800 ${theme.cardText}`}>
-                                                {/* 수입 섹션 */}
                                                 <tr className="bg-blue-900/10 font-bold"><td colSpan="14" className="px-3 py-1.5 text-blue-400">수입</td></tr>
                                                 {Object.entries(yearlyStats.categoryData.income).map(([cat, months]) => {
                                                     const total = months.reduce((a, b) => a + b, 0);
@@ -760,7 +734,6 @@
                                                     );
                                                 })}
 
-                                                {/* 지출 섹션 */}
                                                 <tr className="bg-rose-900/10 font-bold"><td colSpan="14" className="px-3 py-1.5 text-rose-400">지출</td></tr>
                                                 {Object.entries(yearlyStats.categoryData.expense).map(([cat, months]) => {
                                                     const total = months.reduce((a, b) => a + b, 0);
