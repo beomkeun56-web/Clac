@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>BK v1.9</title>
+    <title>BK v1.10</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script type="importmap">
     {
@@ -19,6 +19,8 @@
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
         button { touch-action: manipulation; }
+        /* 줌 컨트롤이 부드럽게 작동하도록 트랜지션 추가 */
+        main { transition: zoom 0.2s ease-in-out; }
     </style>
 </head>
 <body class="bg-black text-gray-100 font-sans selection:bg-blue-500 selection:text-white">
@@ -27,9 +29,9 @@
     <script type="text/babel" data-type="module" data-presets="react">
         import React, { useState, useMemo, useEffect } from 'react';
         import { createRoot } from 'react-dom/client';
-        import { ChevronLeft, ChevronRight, Plus, X, Wallet, TrendingUp, TrendingDown, Calendar as CalendarIcon, Settings, Moon, Sun, List, LayoutGrid, Download, Upload, Pencil, PieChart, BarChart3, Trash2, Scale, Layers, LineChart, Table2 } from 'lucide-react';
+        import { ChevronLeft, ChevronRight, Plus, Minus, X, Wallet, TrendingUp, TrendingDown, Calendar as CalendarIcon, Settings, Moon, Sun, List, LayoutGrid, Download, Upload, Pencil, PieChart, BarChart3, Trash2, Scale, Layers, LineChart, Table2, ZoomIn, ZoomOut } from 'lucide-react';
 
-        const APP_VERSION = "v1.9";
+        const APP_VERSION = "v1.10";
 
         const formatCurrency = (amount, currency) => {
             const options = { style: 'currency', currency: currency, minimumFractionDigits: 0, maximumFractionDigits: 0 };
@@ -67,6 +69,7 @@
             const [initialBalance, setInitialBalance] = useState(0);
             const [currency, setCurrency] = useState('KRW'); 
             const [isDarkMode, setIsDarkMode] = useState(true); 
+            const [zoomLevel, setZoomLevel] = useState(1); // 줌 상태 추가 (기본 1.0)
             const [isSettingsOpen, setIsSettingsOpen] = useState(false);
             const [activeTab, setActiveTab] = useState('calendar');
             const [currentDate, setCurrentDate] = useState(new Date());
@@ -87,9 +90,11 @@
                 desc: ''
             });
 
-            // 초기 로딩
+            // 초기 로딩 (데이터 + 줌 설정)
             useEffect(() => {
                 const savedData = localStorage.getItem('bk_budget_data_v5');
+                const savedZoom = localStorage.getItem('bk_budget_zoom'); // 줌 설정 로드
+
                 if (savedData) {
                     try {
                         const parsed = JSON.parse(savedData);
@@ -100,10 +105,15 @@
                         if (parsed.categories) setCategories(parsed.categories);
                     } catch (e) { console.error(e); }
                 }
+                
+                if (savedZoom) {
+                    setZoomLevel(parseFloat(savedZoom));
+                }
+
                 setIsLoaded(true);
             }, []);
 
-            // 저장
+            // 데이터 저장
             useEffect(() => {
                 if (isLoaded) {
                     const dataToSave = { initialBalance, currency, isDarkMode, transactions, categories };
@@ -111,7 +121,24 @@
                 }
             }, [initialBalance, currency, isDarkMode, transactions, categories, isLoaded]);
 
-            // 기본값 설정
+            // 줌 변경 시 저장
+            const handleZoomIn = () => {
+                const newZoom = Math.min(zoomLevel + 0.05, 2.0); // 최대 200%
+                setZoomLevel(newZoom);
+                localStorage.setItem('bk_budget_zoom', newZoom);
+            };
+
+            const handleZoomOut = () => {
+                const newZoom = Math.max(zoomLevel - 0.05, 0.5); // 최소 50%
+                setZoomLevel(newZoom);
+                localStorage.setItem('bk_budget_zoom', newZoom);
+            };
+
+            const handleZoomReset = () => {
+                setZoomLevel(1);
+                localStorage.setItem('bk_budget_zoom', 1);
+            };
+
             useEffect(() => {
                 if (isModalOpen && !editingId) {
                     const currentCats = newTrans.type === 'income' ? categories.income : categories.expense;
@@ -378,7 +405,7 @@
 
             return (
                 <div className={`min-h-screen font-sans transition-colors duration-200 ${theme.bg} ${theme.text}`}>
-                    <header className={`sticky top-0 z-10 border-b ${theme.header}`}>
+                    <header className={`sticky top-0 z-20 border-b ${theme.header}`}>
                         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 <div className="bg-blue-600 p-2 rounded-lg text-white"><CalendarIcon size={20} /></div>
@@ -388,6 +415,11 @@
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
+                                <div className="flex items-center bg-neutral-800 rounded-lg p-0.5 mr-2">
+                                    <button onClick={handleZoomOut} className="p-1.5 text-gray-400 hover:text-white"><Minus size={14}/></button>
+                                    <span className="text-[10px] w-8 text-center text-gray-300 font-mono">{Math.round(zoomLevel * 100)}%</span>
+                                    <button onClick={handleZoomIn} className="p-1.5 text-gray-400 hover:text-white"><Plus size={14}/></button>
+                                </div>
                                 <button onClick={() => setIsDarkMode(!isDarkMode)} className={`p-2 rounded-full ${theme.hover} ${theme.subText}`}><Sun size={20} /></button>
                                 <button onClick={() => { setIsSettingsOpen(true); setSettingsTab('general'); }} className={`p-2 rounded-full ${theme.hover} ${theme.subText}`}><Settings size={20} /></button>
                                 <button onClick={() => { setEditingId(null); setIsModalOpen(true); }} className="ml-2 bg-blue-600 text-white px-3 py-2 rounded-md"><Plus size={16} /></button>
@@ -395,7 +427,7 @@
                         </div>
                     </header>
 
-                    <main className="max-w-6xl mx-auto px-4 py-6 pb-20">
+                    <main className="max-w-6xl mx-auto px-4 py-6 pb-20 origin-top-center" style={{ zoom: zoomLevel }}>
                         {/* 1. 상단 대시보드 */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                             <div className={`md:col-span-2 rounded-xl border p-4 ${theme.card}`}>
