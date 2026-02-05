@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>BK v3.1</title>
+    <title>BK v3.2</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script type="importmap">
     {
@@ -30,7 +30,7 @@
         import { createRoot } from 'react-dom/client';
         import { ChevronLeft, ChevronRight, Plus, Minus, X, Wallet, TrendingUp, TrendingDown, Calendar as CalendarIcon, Settings, Moon, Sun, List, LayoutGrid, Download, Upload, Pencil, PieChart, BarChart3, Trash2, Scale, Layers, LineChart, Table2, StickyNote, FolderTree, Tag, ArrowRight } from 'lucide-react';
 
-        const APP_VERSION = "v3.1";
+        const APP_VERSION = "v3.2";
         
         // 전체 앱 폰트 사이즈
         const FONT_SIZES = ['text-xs', 'text-sm', 'text-base', 'text-lg', 'text-xl', 'text-2xl', 'text-3xl', 'text-4xl'];
@@ -54,19 +54,14 @@
         };
 
         const formatCompactNumber = (number) => {
-            if (number === 0) return '-';
+            if (number === 0) return '0';
             const abs = Math.abs(number);
             
-            if (abs < 100) return new Intl.NumberFormat('ko-KR').format(number);
+            if (abs < 1000) return new Intl.NumberFormat('ko-KR').format(number);
 
-            if (abs < 1000) {
-                 const val = number / 100;
-                 return val.toFixed(val % 1 === 0 ? 0 : 1) + '백';
-            }
-            
             if (abs < 10000) {
-                const val = number / 1000;
-                return val.toFixed(val % 1 === 0 ? 0 : 1) + '천';
+                 const val = number / 1000;
+                 return val.toFixed(val % 1 === 0 ? 0 : 1) + '천';
             }
             
             const val = number / 10000;
@@ -243,7 +238,6 @@
                 const startStr = `${year}-${String(month + 1).padStart(2, '0')}-01`;
                 const endStr = `${year}-${String(month + 1).padStart(2, '0')}-31`;
                 
-                // 전월 이월 계산
                 let carryover = Number(initialBalance);
                 transactions.forEach(t => {
                     if (t.date < startStr) {
@@ -341,40 +335,23 @@
             const handleSaveTransaction = (e) => {
                 e.preventDefault();
                 if (!newTrans.amount || !newTrans.desc) return;
-                
                 const currentMainCats = newTrans.type === 'income' ? mainCategories.income : mainCategories.expense;
                 const currentSubCats = newTrans.type === 'income' ? categories.income : categories.expense;
-
                 const transToSave = { 
                     ...newTrans, 
                     mainCategory: newTrans.mainCategory || (currentMainCats[0] || '기타'),
                     category: newTrans.category || (currentSubCats[0] || '기타'),
                     amount: Number(newTrans.amount) 
                 };
-
-                if (editingId) {
-                    setTransactions(prev => prev.map(t => t.id === editingId ? { ...transToSave, id: editingId } : t));
-                } else {
-                    setTransactions([...transactions, { id: Date.now(), ...transToSave }]);
-                }
-                setIsModalOpen(false); setEditingId(null); 
-                setNewTrans({ ...newTrans, amount: '', desc: '', category: '', mainCategory: '', memo: '' }); 
-                setSelectedDateDetail(null);
+                if (editingId) setTransactions(prev => prev.map(t => t.id === editingId ? { ...transToSave, id: editingId } : t));
+                else setTransactions([...transactions, { id: Date.now(), ...transToSave }]);
+                setIsModalOpen(false); setEditingId(null); setNewTrans({ ...newTrans, amount: '', desc: '', category: '', mainCategory: '', memo: '' }); setSelectedDateDetail(null);
             };
 
             const handleEditClick = (transaction) => {
                 setEditingId(transaction.id);
-                setNewTrans({ 
-                    date: transaction.date, 
-                    type: transaction.type, 
-                    amount: transaction.amount, 
-                    desc: transaction.desc, 
-                    category: transaction.category || '',
-                    mainCategory: transaction.mainCategory || '',
-                    memo: transaction.memo || ''
-                });
-                setIsModalOpen(true);
-                setSelectedDateDetail(null);
+                setNewTrans({ date: transaction.date, type: transaction.type, amount: transaction.amount, desc: transaction.desc, category: transaction.category || '', mainCategory: transaction.mainCategory || '', memo: transaction.memo || '' });
+                setIsModalOpen(true); setSelectedDateDetail(null);
             };
 
             const handleDelete = (id) => {
@@ -432,9 +409,22 @@
 
             if (!isLoaded) return null; 
 
-            const renderComparison = (currentVal, category, type) => {
-                // 이 버전에서는 통계 탭에서 비교 기능을 간소화 (상세 구현 시 카테고리별 누적 필요)
-                return null;
+            const renderComparison = (currentVal, prevVal, type) => {
+                const diff = currentVal - prevVal;
+                let diffText = <span className="text-gray-500">-</span>;
+                if (diff > 0) {
+                    const colorClass = type === 'income' ? 'text-blue-500' : 'text-rose-500';
+                    diffText = <span className={colorClass}>▲{formatCurrency(diff, currency).replace(/[₩¥CNY]/g, '').trim()}</span>;
+                } else if (diff < 0) {
+                    const colorClass = type === 'income' ? 'text-rose-500' : 'text-blue-500';
+                    diffText = <span className={colorClass}>▼{formatCurrency(Math.abs(diff), currency).replace(/[₩¥CNY]/g, '').trim()}</span>;
+                }
+                return (
+                    <div className="flex items-center gap-1 text-[10px]">
+                        <span className="text-gray-500">전 {formatCurrency(prevVal, currency).replace(/[₩¥CNY]/g, '').trim()}</span>
+                        {diffText}
+                    </div>
+                );
             };
 
             const currentFontSizeClass = FONT_SIZES[fontIndex];
@@ -493,17 +483,17 @@
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                             {/* 1구역: 자금 확보 (이월 + 수입 = 총수입) */}
                             <div className={`md:col-span-1 rounded-xl border p-4 flex flex-col justify-center gap-2 relative overflow-hidden ${theme.card}`}>
-                                <div className="flex justify-between items-center border-b border-neutral-800 pb-2 mb-1">
+                                <div className="flex justify-between items-center text-[0.9em] border-b border-neutral-800 pb-2 mb-1">
                                     <span className={theme.subText}>전월 이월</span>
                                     <span className={theme.cardText}>{formatCurrency(categoryStats.carryover, currency)}</span>
                                 </div>
-                                <div className="flex justify-between items-center">
+                                <div className="flex justify-between items-center text-[0.9em]">
                                     <span className="text-blue-400 font-medium">이번 달 수입</span>
                                     <span className="text-blue-400 font-bold">+{formatCurrency(categoryStats.monthlyIncome, currency)}</span>
                                 </div>
                                 <div className="flex justify-between items-center pt-2 mt-1 border-t border-neutral-700">
-                                    <span className="text-gray-400">총 가용 자금</span>
-                                    <span className={`font-bold ${theme.cardText}`}>{formatCurrency(categoryStats.totalRevenue, currency)}</span>
+                                    <span className="text-[0.8em] text-gray-400">총 가용 자금</span>
+                                    <span className={`text-[1.2em] font-bold ${theme.cardText}`}>{formatCurrency(categoryStats.totalRevenue, currency)}</span>
                                 </div>
                             </div>
 
@@ -524,6 +514,11 @@
                             </div>
                         </div>
                         
+                         <div className={`rounded-xl border p-3 mb-6 flex justify-between items-center ${theme.card}`}>
+                            <div className="flex items-center gap-2"><Layers size={16} className="text-gray-400"/><span className={`text-xs ${theme.subText}`}>전체 누적 자산</span></div>
+                            <span className={`font-bold ${allTimeStats.balance >= 0 ? 'text-blue-400' : 'text-rose-400'}`}>{formatCurrency(allTimeStats.balance, currency)}</span>
+                        </div>
+
                         {/* 탭 메뉴 */}
                         <div className="flex gap-2 mb-4 border-b border-gray-200 dark:border-neutral-800">
                             <button onClick={() => setActiveTab('calendar')} className={`pb-3 px-4 font-medium flex items-center gap-2 border-b-2 ${activeTab === 'calendar' ? `border-blue-500 text-blue-500` : `border-transparent ${theme.subText}`}`}><LayoutGrid size={18} />달력</button>
@@ -553,21 +548,28 @@
 
                                         return (
                                             <div key={item.dateStr} onClick={() => handleDateClick(item.dateStr)} className={`min-h-[100px] sm:min-h-[140px] p-1 border-b border-r last:border-r-0 relative cursor-pointer ${theme.gridLine} ${theme.hover} ${isToday ? theme.today : ''}`}>
-                                                <div className="flex flex-col sm:flex-row justify-between items-start mb-1">
-                                                    <span className={`text-[0.8em] font-medium w-6 h-6 flex items-center justify-center rounded-full ${isToday ? 'bg-blue-600 text-white' : theme.subText}`}>{item.day}</span>
-                                                    {/* [수정] 잔액 색상 조건: 음수 빨강, 아니면 흰색 */}
-                                                    <span className={`text-[0.75em] px-1 rounded ${currentBalance < 0 ? 'text-rose-500 font-bold' : 'text-white'}`}>{formatCurrency(currentBalance, currency)}</span>
-                                                </div>
-                                                <div className="flex flex-col gap-0.5 overflow-hidden h-[70px] sm:h-[90px] overflow-y-auto scrollbar-hide">
-                                                    {dayTransactions.map((t) => (
-                                                        <div key={t.id} className={`text-[0.7em] flex justify-between items-center px-1 py-0.5 rounded ${t.type === 'income' ? `${theme.incomeBg} ${theme.incomeText}` : `${theme.expenseBg} ${theme.expenseText}`}`}>
-                                                            <div className="flex items-center gap-1 truncate max-w-[65%]">
-                                                                <span className="opacity-75 border px-0.5 rounded border-current">{t.category}</span>
-                                                                <span className="truncate">{t.desc}</span>
-                                                            </div>
-                                                            <span>{formatCurrency(t.amount, currency).replace(/[₩¥CNY]/g, '').trim()}</span>
+                                                <div className="flex flex-col justify-between h-full">
+                                                    <div className="flex justify-between items-start mb-1">
+                                                        <span className={`text-[0.8em] font-medium w-6 h-6 flex items-center justify-center rounded-full ${isToday ? 'bg-blue-600 text-white' : theme.subText}`}>{item.day}</span>
+                                                        
+                                                        {/* [수정] 일별 요약 (날짜 옆/우측 상단) */}
+                                                        <div className="flex flex-col items-end gap-0.5">
+                                                            {dateStats?.income > 0 && <span className="text-[0.65em] text-blue-400">+{formatCompactNumber(dateStats.income)}</span>}
+                                                            {dateStats?.expense > 0 && <span className="text-[0.65em] text-rose-400">-{formatCompactNumber(dateStats.expense)}</span>}
+                                                            <span className={`text-[0.65em] ${currentBalance < 0 ? 'text-rose-500 font-bold' : 'text-white'}`}>{formatCompactNumber(currentBalance)}</span>
                                                         </div>
-                                                    ))}
+                                                    </div>
+
+                                                    <div className="flex flex-col gap-0.5 overflow-hidden h-[50px] overflow-y-auto scrollbar-hide">
+                                                        {dayTransactions.map((t) => (
+                                                            <div key={t.id} className={`text-[0.7em] flex justify-between items-center px-1 py-0.5 rounded ${t.type === 'income' ? `${theme.incomeBg} ${theme.incomeText}` : `${theme.expenseBg} ${theme.expenseText}`}`}>
+                                                                <div className="flex items-center gap-1 truncate max-w-[65%]">
+                                                                    <span className="truncate">{t.desc}</span>
+                                                                </div>
+                                                                <span>{formatCompactNumber(t.amount)}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
                                                 </div>
                                             </div>
                                         );
@@ -628,7 +630,10 @@
                                                 <div key={main.name} className="space-y-2">
                                                     <div className="flex justify-between items-end border-b border-neutral-800 pb-1">
                                                         <span className={`font-bold ${theme.cardText}`}>{main.name}</span>
-                                                        <span className={`${theme.expenseText} font-bold`}>{formatCurrency(main.total, currency)}</span>
+                                                        <div className="flex gap-2 items-end">
+                                                            {renderComparison(main.total, main.prev, 'expense')}
+                                                            <span className={`${theme.expenseText} font-bold`}>{formatCurrency(main.total, currency)}</span>
+                                                        </div>
                                                     </div>
                                                     <div className="space-y-1.5 pl-2 border-l-2 border-neutral-800 ml-1">
                                                         {main.subs.map((sub) => (
@@ -656,7 +661,10 @@
                                                 <div key={main.name} className="space-y-2">
                                                     <div className="flex justify-between items-end border-b border-neutral-800 pb-1">
                                                         <span className={`font-bold ${theme.cardText}`}>{main.name}</span>
-                                                        <span className={`${theme.incomeText} font-bold`}>{formatCurrency(main.total, currency)}</span>
+                                                        <div className="flex gap-2 items-end">
+                                                            {renderComparison(main.total, main.prev, 'income')}
+                                                            <span className={`${theme.incomeText} font-bold`}>{formatCurrency(main.total, currency)}</span>
+                                                        </div>
                                                     </div>
                                                     <div className="space-y-1.5 pl-2 border-l-2 border-neutral-800 ml-1">
                                                         {main.subs.map((sub) => (
@@ -695,7 +703,7 @@
                                     <table className={`w-full ${currentTableFontSize} text-left table-fixed`}>
                                         <thead className={`bg-neutral-900 ${theme.subText}`}>
                                             <tr>
-                                                <th className="px-1 py-2 border-r border-neutral-800 font-bold text-gray-300 w-[60px] max-w-[60px] whitespace-nowrap overflow-hidden text-ellipsis">구분</th>
+                                                <th className="px-1 py-2 border-r border-neutral-800 font-bold text-gray-300 w-[15%]">구분</th>
                                                 {[...Array(12)].map((_, i) => <th key={i} className="px-0.5 py-2 text-center border-r border-neutral-800 last:border-0 w-[6%]">{i+1}</th>)}
                                                 <th className="px-1 py-2 text-right bg-neutral-900 border-l border-neutral-800 font-bold text-gray-300 w-[13%]">합계</th>
                                             </tr>
