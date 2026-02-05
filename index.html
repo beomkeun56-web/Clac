@@ -66,7 +66,7 @@
         import { createRoot } from 'react-dom/client';
         import { ChevronLeft, ChevronRight, Plus, Minus, X, Wallet, TrendingUp, TrendingDown, Calendar as CalendarIcon, Settings, Moon, Sun, List, LayoutGrid, Download, Upload, Pencil, PieChart, BarChart3, Trash2, Scale, Layers, LineChart, Table2, StickyNote, FolderTree, Tag, ArrowRight, MoreHorizontal } from 'lucide-react';
 
-        const APP_VERSION = "v3.5.2 Mobile Fix";
+        const APP_VERSION = "v3.5.3 Mobile Layout";
         
         const FONT_SIZES = ['text-xs', 'text-sm', 'text-base', 'text-lg', 'text-xl', 'text-2xl', 'text-3xl', 'text-4xl'];
         const FONT_LABELS = ['80%', '90%', '100%', '110%', '120%', '130%', '140%', '150%'];
@@ -554,7 +554,8 @@
                             </div>
 
                             {/* Stats Summary Cards */}
-                            <div className="md:col-span-6 lg:col-span-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {/* UPDATED: Changed grid-cols-1 to grid-cols-2 for mobile to fix vertical stacking */}
+                            <div className="md:col-span-6 lg:col-span-8 grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                                 {/* Income Card */}
                                 <div className={`rounded-2xl p-5 border flex flex-col justify-center ${theme.card}`}>
                                     <div className="flex items-center gap-3 mb-2">
@@ -562,7 +563,7 @@
                                         <span className={`text-sm font-medium ${theme.subText}`}>이번 달 수입</span>
                                     </div>
                                     <div className="flex items-baseline gap-2">
-                                        <span className="text-2xl font-bold text-blue-500">-{formatCompactNumber(categoryStats.monthlyIncome)}</span>
+                                        <span className="text-xl sm:text-2xl font-bold text-blue-500">-{formatCompactNumber(categoryStats.monthlyIncome)}</span>
                                         <span className="text-xs text-gray-400">원</span>
                                     </div>
                                     <div className="mt-2 text-xs text-gray-500">
@@ -577,7 +578,7 @@
                                         <span className={`text-sm font-medium ${theme.subText}`}>이번 달 지출</span>
                                     </div>
                                     <div className="flex items-baseline gap-2">
-                                        <span className="text-2xl font-bold text-rose-500">-{formatCompactNumber(categoryStats.monthlyExpense)}</span>
+                                        <span className="text-xl sm:text-2xl font-bold text-rose-500">-{formatCompactNumber(categoryStats.monthlyExpense)}</span>
                                         <span className="text-xs text-gray-400">원</span>
                                     </div>
                                     <div className="mt-2 text-xs text-gray-500">
