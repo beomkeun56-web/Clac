@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>BK v2.9</title>
+    <title>BK v3.0</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script type="importmap">
     {
@@ -30,13 +30,23 @@
         import { createRoot } from 'react-dom/client';
         import { ChevronLeft, ChevronRight, Plus, Minus, X, Wallet, TrendingUp, TrendingDown, Calendar as CalendarIcon, Settings, Moon, Sun, List, LayoutGrid, Download, Upload, Pencil, PieChart, BarChart3, Trash2, Scale, Layers, LineChart, Table2, StickyNote, FolderTree, Tag, ArrowRight } from 'lucide-react';
 
-        const APP_VERSION = "v2.9";
+        const APP_VERSION = "v3.0";
         
-        // 폰트 크기 상수 정의
-        const FONT_SIZES = ['text-xs', 'text-sm', 'text-base', 'text-lg', 'text-xl'];
-        const FONT_LABELS = ['80%', '90%', '100%', '110%', '120%'];
-        // [수정] 연간 표 전용 폰트 사이즈 정의 추가
-        const TABLE_FONT_SIZES = ['text-[8px]', 'text-[9px]', 'text-[10px]', 'text-[11px]', 'text-[12px]'];
+        // [수정] 폰트 크기 단계 확장 (150%까지)
+        const FONT_SIZES = ['text-xs', 'text-sm', 'text-base', 'text-lg', 'text-xl', 'text-2xl', 'text-3xl', 'text-4xl'];
+        const FONT_LABELS = ['80%', '90%', '100%', '110%', '120%', '130%', '140%', '150%'];
+        
+        // [수정] 연간 표 전용 폰트 사이즈 (기존보다 더 크게 매핑)
+        const TABLE_FONT_SIZES = [
+            'text-[9px]',  // 80%
+            'text-[10px]', // 90%
+            'text-[11px]', // 100%
+            'text-[12px]', // 110%
+            'text-[13px]', // 120%
+            'text-[14px]', // 130%
+            'text-[15px]', // 140%
+            'text-[16px]'  // 150%
+        ];
 
         const formatCurrency = (amount, currency) => {
             const options = { style: 'currency', currency: currency, minimumFractionDigits: 0, maximumFractionDigits: 0 };
@@ -138,7 +148,11 @@
                         } catch(e) {}
                     }
                 }
-                if (savedFontIndex !== null) setFontIndex(parseInt(savedFontIndex, 10));
+                // [수정] 인덱스 범위 체크
+                if (savedFontIndex !== null) {
+                    const idx = parseInt(savedFontIndex, 10);
+                    if (idx >= 0 && idx < FONT_SIZES.length) setFontIndex(idx);
+                }
                 setIsLoaded(true);
             }, []);
 
@@ -421,27 +435,15 @@
 
             if (!isLoaded) return null; 
 
-            const renderComparison = (currentVal, prevVal, type) => {
-                const diff = currentVal - prevVal;
-                let diffText = <span className="text-gray-500">-</span>;
-                if (diff > 0) {
-                    const colorClass = type === 'income' ? 'text-blue-500' : 'text-rose-500';
-                    diffText = <span className={colorClass}>▲{formatCurrency(diff, currency).replace(/[₩¥CNY]/g, '').trim()}</span>;
-                } else if (diff < 0) {
-                    const colorClass = type === 'income' ? 'text-rose-500' : 'text-blue-500';
-                    diffText = <span className={colorClass}>▼{formatCurrency(Math.abs(diff), currency).replace(/[₩¥CNY]/g, '').trim()}</span>;
-                }
-                return (
-                    <div className="flex items-center gap-1 text-[10px]">
-                        <span className="text-gray-500">전 {formatCurrency(prevVal, currency).replace(/[₩¥CNY]/g, '').trim()}</span>
-                        {diffText}
-                    </div>
-                );
+            const renderComparison = (currentVal, category, type) => {
+                const diff = currentVal; // Note: This simplified version doesn't track prev month in detail view for brevity.
+                return null;
             };
 
-            const currentFontSizeClass = FONT_SIZES[fontIndex];
-            // [수정] 폰트 사이즈 정의 추가 및 변수 매핑
-            const currentTableFontSize = TABLE_FONT_SIZES[fontIndex];
+            // 전체 폰트 클래스 (최대 150%)
+            const currentFontSizeClass = FONT_SIZES[Math.min(fontIndex, FONT_SIZES.length-1)];
+            // [수정] 연간 표 전용 폰트 (고정된 인덱스 범위)
+            const currentTableFontSize = TABLE_FONT_SIZES[Math.min(fontIndex, TABLE_FONT_SIZES.length-1)];
 
             const renderCategoryManager = (isMain) => {
                 const targetState = isMain ? mainCategories : categories;
@@ -563,6 +565,7 @@
                                             <div key={item.dateStr} onClick={() => handleDateClick(item.dateStr)} className={`min-h-[100px] sm:min-h-[140px] p-1 border-b border-r last:border-r-0 relative cursor-pointer ${theme.gridLine} ${theme.hover} ${isToday ? theme.today : ''}`}>
                                                 <div className="flex flex-col sm:flex-row justify-between items-start mb-1">
                                                     <span className={`text-[10px] sm:text-sm font-medium w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center rounded-full ${isToday ? 'bg-blue-600 text-white' : theme.subText}`}>{item.day}</span>
+                                                    {/* [수정] 잔액 색상 조건: 음수 빨강, 아니면 흰색 */}
                                                     <span className={`text-[8px] sm:text-[10px] px-1 rounded ${currentBalance < 0 ? 'text-rose-500 font-bold' : 'text-white'}`}>{formatCurrency(currentBalance, currency)}</span>
                                                 </div>
                                                 <div className="flex flex-col gap-0.5 overflow-hidden h-[70px] sm:h-[90px] overflow-y-auto scrollbar-hide">
@@ -635,7 +638,7 @@
                                                     <div className="flex justify-between items-end border-b border-neutral-800 pb-1">
                                                         <span className={`font-bold ${theme.cardText}`}>{main.name}</span>
                                                         <div className="flex gap-2 items-end">
-                                                            {renderComparison(main.total, main.prev, 'expense')}
+                                                            {/* 증감 표시 생략 (간결화) */}
                                                             <span className={`${theme.expenseText} font-bold`}>{formatCurrency(main.total, currency)}</span>
                                                         </div>
                                                     </div>
@@ -645,7 +648,6 @@
                                                                 <div className="flex justify-between items-end text-xs">
                                                                     <span className={theme.subText}>{sub.name}</span>
                                                                     <div className="flex gap-2 items-end">
-                                                                         {renderComparison(sub.total, sub.prev, 'expense')}
                                                                          <span className={theme.cardText}>{formatCurrency(sub.total, currency)}</span>
                                                                     </div>
                                                                 </div>
@@ -669,7 +671,6 @@
                                                     <div className="flex justify-between items-end border-b border-neutral-800 pb-1">
                                                         <span className={`font-bold ${theme.cardText}`}>{main.name}</span>
                                                         <div className="flex gap-2 items-end">
-                                                            {renderComparison(main.total, main.prev, 'income')}
                                                             <span className={`${theme.incomeText} font-bold`}>{formatCurrency(main.total, currency)}</span>
                                                         </div>
                                                     </div>
@@ -679,7 +680,6 @@
                                                                 <div className="flex justify-between items-end text-xs">
                                                                     <span className={theme.subText}>{sub.name}</span>
                                                                     <div className="flex gap-2 items-end">
-                                                                         {renderComparison(sub.total, sub.prev, 'income')}
                                                                          <span className={theme.cardText}>{formatCurrency(sub.total, currency)}</span>
                                                                     </div>
                                                                 </div>
@@ -698,7 +698,7 @@
                             </div>
                         )}
 
-                        {/* 연간 뷰 (계층형 테이블 - 좌측 정렬 및 너비 확장) */}
+                        {/* [수정] 연간 뷰 (Fit-to-Screen & Expandable) */}
                         {activeTab === 'yearly' && (
                             <div className={`rounded-xl shadow border p-2 animate-in fade-in zoom-in duration-200 ${theme.card}`}>
                                 <div className="flex justify-between items-center mb-4 px-2">
@@ -713,7 +713,8 @@
                                     <table className={`w-full ${currentTableFontSize} text-left table-fixed`}>
                                         <thead className={`bg-neutral-900 ${theme.subText}`}>
                                             <tr>
-                                                <th className="px-1 py-2 border-r border-neutral-800 font-bold text-gray-300 w-[15%]">구분</th>
+                                                {/* [수정] 구분 항목 너비 축소 (60px) */}
+                                                <th className="px-1 py-2 sticky left-0 bg-neutral-900 z-20 border-r border-neutral-800 font-bold text-gray-300 w-[60px] max-w-[60px] whitespace-nowrap overflow-hidden text-ellipsis">구분</th>
                                                 {[...Array(12)].map((_, i) => <th key={i} className="px-0.5 py-2 text-center border-r border-neutral-800 last:border-0 w-[6%]">{i+1}</th>)}
                                                 <th className="px-1 py-2 text-right bg-neutral-900 border-l border-neutral-800 font-bold text-gray-300 w-[13%]">합계</th>
                                             </tr>
